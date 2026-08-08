@@ -43,7 +43,7 @@ class CobraCompilerV2Base:
         *,
         critical_margin: int | float | None = None,
         radius: int | float | None = None,
-        LAM: int | float | None = None,
+        MoI: int | float | None = None,
         N: int | float | None = None,
         alpha: float = 0.05,
         lambda_value: float | None = None,
@@ -55,8 +55,8 @@ class CobraCompilerV2Base:
         self.interpreter = interpreter
         self.graph = interpreter.graph
         self.base_vertex = interpreter.vertex
-        self.LAM = float(getattr(self.graph, "LAM") if LAM is None else LAM)
-        self.radius = float(2.0 * self.LAM if radius is None else radius)
+        self.MoI = float(getattr(self.graph, "MoI") if MoI is None else MoI)
+        self.radius = float(2.0 * self.MoI if radius is None else radius)
         self.N = float(self._total_ballot_weight() if N is None else N)
         self.alpha = float(alpha)
         if not 0.0 < self.alpha < 1.0:
@@ -739,7 +739,7 @@ class CobraCompiler:
         candidate_index: int,
         candidate_strings: Sequence[str] | EdgeAction | None = None,
         edge_type: EdgeAction | None = None,
-        LAM: int | float | None = None,
+        MoI: int | float | None = None,
         quota: int | float | None = None,
         N: int | float | None = None,
         noise_level_guess: float = 0.0,
@@ -775,7 +775,7 @@ class CobraCompiler:
         if edge_type is None:
             raise ValueError("edge_type is required.")
         self.edge_type = EdgeAction(edge_type)
-        self.LAM = float(self._init_value_from_graph("LAM", LAM, audit_graph))
+        self.MoI = float(self._init_value_from_graph("MoI", MoI, audit_graph))
         self.quota = float(self._init_value_from_graph("quota", quota, audit_graph))
         self.N = float(self._init_total_ballot_weight(N, audit_graph))
         self.noise_level_guess = float(noise_level_guess)
@@ -943,12 +943,12 @@ class CobraCompiler:
         tallies = np.asarray(self.base_vertex.tallies)
         if tallies.ndim != 1 or len(tallies) != len(self.candidate_strings):
             raise ValueError("base_vertex.tallies must be one-dimensional by candidate.")
-        if self.LAM <= 0 or self.N <= 0 or self.quota <= 0:
-            raise ValueError("LAM, N, and quota must all be positive.")
+        if self.MoI <= 0 or self.N <= 0 or self.quota <= 0:
+            raise ValueError("MoI, N, and quota must all be positive.")
         if not 0.0 <= self.noise_level_guess <= 1.0:
             raise ValueError("noise_level_guess must be in [0, 1].")
-        if self.LAM >= 2.0 * self.quota / 3.0:
-            self._warn("LAM is at least 2*quota/3; COBRA assumptions may be weak.")
+        if self.MoI >= 2.0 * self.quota / 3.0:
+            self._warn("MoI is at least 2*quota/3; COBRA assumptions may be weak.")
         if self.edge_type not in (
             EdgeAction.ELIMINATE,
             EdgeAction.ELECT,
@@ -1053,7 +1053,7 @@ class CobraCompiler:
         )
 
     def _select_elimination_escape_margin(self) -> None:
-        forced = np.where(self.tallies >= self.quota + self.LAM)[0]
+        forced = np.where(self.tallies >= self.quota + self.MoI)[0]
         if len(forced) > 0:
             winner = int(forced[np.argmax(self.tallies[forced])])
             self.critical_margin_type = CriticalMarginType.CANDIDATE_ABOVE_QUOTA
@@ -1072,9 +1072,9 @@ class CobraCompiler:
 
         c_tally = float(self.tallies[self.candidate_index])
         lowest_tally = float(self.tallies[lowest])
-        if lowest_tally + self.LAM >= c_tally:
+        if lowest_tally + self.MoI >= c_tally:
             self._warn(
-                "Elimination escape margin is not more than LAM: "
+                "Elimination escape margin is not more than MoI: "
                 f"candidate={self._candidate_label(self.candidate_index)} "
                 f"tally={c_tally}; lowest={self._candidate_label(lowest)} "
                 f"tally={lowest_tally}."
@@ -1089,7 +1089,7 @@ class CobraCompiler:
         c_tally = float(self.tallies[self.candidate_index])
 
         if not self.simultaneous:
-            challengers = np.where(self.tallies > c_tally + self.LAM)[0]
+            challengers = np.where(self.tallies > c_tally + self.MoI)[0]
             challengers = np.asarray(
                 [idx for idx in challengers if idx != self.candidate_index],
                 dtype=int,
@@ -1102,7 +1102,7 @@ class CobraCompiler:
                 self.critical_margin = float(self.tallies[winner] - c_tally)
                 return
 
-        if c_tally + self.LAM < self.quota:
+        if c_tally + self.MoI < self.quota:
             self.critical_margin_type = CriticalMarginType.CANDIDATE_BELOW_QUOTA
             self.canonical_non_winner = self.candidate_index
             self.critical_margin = float(self.quota - c_tally)
@@ -1111,7 +1111,7 @@ class CobraCompiler:
         raise ValueError(
             "Could not identify a critical margin for election escape edge: "
             f"candidate={self._candidate_label(self.candidate_index)}, "
-            f"tally={c_tally}, quota={self.quota}, LAM={self.LAM}, "
+            f"tally={c_tally}, quota={self.quota}, MoI={self.MoI}, "
             f"simultaneous={self.simultaneous}."
         )
 
@@ -1133,11 +1133,11 @@ class CobraCompiler:
         p_1 = noise - p_2
         p_0 = 1.0 - p_1 - p_2
 
-        def objective(lam: float) -> float:
+        def objective(candidate_lambda: float) -> float:
             return (
-                ((self.a - 0.5) * p_0) / (1.0 + lam * (self.a - 0.5))
-                + ((self.a - 1.0) * p_1) / (2.0 - lam * (1.0 - self.a))
-                - p_2 / (2.0 - lam)
+                ((self.a - 0.5) * p_0) / (1.0 + candidate_lambda * (self.a - 0.5))
+                + ((self.a - 1.0) * p_1) / (2.0 - candidate_lambda * (1.0 - self.a))
+                - p_2 / (2.0 - candidate_lambda)
             )
 
         lo = np.nextafter(0.0, 1.0)

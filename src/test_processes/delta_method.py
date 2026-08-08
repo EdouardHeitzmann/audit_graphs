@@ -1600,7 +1600,7 @@ class DeltaMethodAuditDriver:
         tallies = np.asarray(vertex.tallies, dtype=np.float64)
         if action == EdgeAction.ELIMINATE:
             forced = np.where(
-                tallies >= self.audit_graph.quota + self.audit_graph.LAM
+                tallies >= self.audit_graph.quota + self.audit_graph.MoI
             )[0]
             if len(forced):
                 winner = int(forced[np.argmax(tallies[forced])])
@@ -1624,7 +1624,7 @@ class DeltaMethodAuditDriver:
                 [
                     index
                     for index in np.where(
-                        tallies > candidate_tally + self.audit_graph.LAM
+                        tallies > candidate_tally + self.audit_graph.MoI
                     )[0]
                     if index != candidate
                 ],
@@ -1637,7 +1637,7 @@ class DeltaMethodAuditDriver:
                     "c": winner,
                     "l": candidate,
                 }
-        if candidate_tally + self.audit_graph.LAM < self.audit_graph.quota:
+        if candidate_tally + self.audit_graph.MoI < self.audit_graph.quota:
             return {
                 "type": CriticalMarginType.CANDIDATE_BELOW_QUOTA,
                 "candidate": candidate,
@@ -1656,7 +1656,7 @@ class DeltaMethodAuditDriver:
         hopefuls = np.asarray(sorted(vertex.key.hopefuls), dtype=int)
         forced = hopefuls[
             tallies[hopefuls]
-            >= self.audit_graph.quota + self.audit_graph.LAM
+            >= self.audit_graph.quota + self.audit_graph.MoI
         ]
         return (
             None
@@ -1687,14 +1687,14 @@ class DeltaMethodAuditDriver:
             challengers = [
                 index
                 for index in np.where(
-                    tallies > candidate_tally + self.audit_graph.LAM
+                    tallies > candidate_tally + self.audit_graph.MoI
                 )[0]
                 if index != candidate
             ]
             if challengers:
                 return False
         return bool(
-            candidate_tally + self.audit_graph.LAM < self.audit_graph.quota
+            candidate_tally + self.audit_graph.MoI < self.audit_graph.quota
         )
 
     def _canonical_winner_set_from_terminal(self) -> frozenset[int]:

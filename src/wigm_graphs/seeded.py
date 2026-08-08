@@ -68,7 +68,7 @@ class SeededWIGMGraphConstructor(WIGMGraphConstructor):
         includes every strong candidate in hopefuls, and chooses any subset of
         the remaining candidates as hopeful. Seeds with too few hopeful
         candidates to fill the remaining seats are skipped. When
-        ``very_strong_candidates`` is omitted, candidates above ``quota + LAM``
+        ``very_strong_candidates`` is omitted, candidates above ``quota + MoI``
         are detected and pre-seated iteratively, with each surplus transfer
         applied before detecting the next candidate. Pass an empty iterable to
         disable automatic very-strong detection. Seeded construction uses
@@ -181,7 +181,7 @@ class SeededWIGMGraphConstructor(WIGMGraphConstructor):
                 seeded_wt_vec,
                 self.n_candidates,
                 remaining_seats=remaining_seats,
-                LAM=float(self.LAM),
+                MoI=float(self.MoI),
                 quota=float(self.quota),
                 masked_candidates=already_elected_set,
             )
@@ -191,7 +191,7 @@ class SeededWIGMGraphConstructor(WIGMGraphConstructor):
                 seeded_wt_vec,
                 self.n_candidates,
                 strong,
-                LAM=float(self.LAM),
+                MoI=float(self.MoI),
                 quota=float(self.quota),
                 verify_strong=True,
                 masked_candidates=already_elected_set,
@@ -443,7 +443,7 @@ class SeededWIGMGraphConstructor(WIGMGraphConstructor):
             forced = [
                 candidate
                 for candidate in sorted(remaining)
-                if tallies[candidate] > self.quota + self.LAM
+                if tallies[candidate] > self.quota + self.MoI
             ]
             if not forced:
                 break
@@ -475,13 +475,13 @@ class SeededWIGMGraphConstructor(WIGMGraphConstructor):
                     for candidate in forced
                     if (
                         candidate != highest
-                        and tallies[highest] - tallies[candidate] <= self.LAM
+                        and tallies[highest] - tallies[candidate] <= self.MoI
                     )
                 ]
                 if near_highest:
                     warnings.warn(
                         "Multiple very-strong candidates are forced and within "
-                        "LAM of the maximum tally; pre-seating only the highest "
+                        "MoI of the maximum tally; pre-seating only the highest "
                         f"current tally candidate {highest}.",
                         RuntimeWarning,
                         stacklevel=2,

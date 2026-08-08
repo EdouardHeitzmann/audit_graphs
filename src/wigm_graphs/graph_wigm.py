@@ -26,7 +26,7 @@ class WIGMGraphConstructor(AbstractGraphConstructor):
         self,
         profile,
         m: int,
-        LAM: float,
+        MoI: float,
         *,
         memory_lite: bool = False,
         trip_when_incoherent: bool = False,
@@ -38,7 +38,7 @@ class WIGMGraphConstructor(AbstractGraphConstructor):
         super().__init__(
             profile,
             m,
-            LAM,
+            MoI,
             memory_lite=memory_lite,
             trip_when_incoherent=trip_when_incoherent,
         )
@@ -350,12 +350,12 @@ class WIGMGraphConstructor(AbstractGraphConstructor):
 
         margins: list[float] = []
 
-        if np.any(v.tallies > self.quota + self.LAM):
+        if np.any(v.tallies > self.quota + self.MoI):
             highest_tally = np.max(v.tallies)
             margins.extend(
                 float(highest_tally - tally)
                 for tally in v.tallies
-                if highest_tally - tally > self.LAM
+                if highest_tally - tally > self.MoI
             )
         elif len(v.key.hopefuls) + v.degree == self.m:
             return None
@@ -365,7 +365,7 @@ class WIGMGraphConstructor(AbstractGraphConstructor):
                 np.maximum(highest_tally, self.quota) - v.tallies,
                 0.0,
             )
-            margins.extend(float(m) for m in election_margins if m > self.LAM)
+            margins.extend(float(m) for m in election_margins if m > self.MoI)
 
             hopefuls = np.array(list(v.key.hopefuls), dtype=int)
             if len(hopefuls) > 0:
@@ -375,7 +375,7 @@ class WIGMGraphConstructor(AbstractGraphConstructor):
                     v.tallies[hopefuls] - lowest_tally,
                     elimination_margin_floor,
                 )
-                margins.extend(float(m) for m in elimination_margins if m > self.LAM)
+                margins.extend(float(m) for m in elimination_margins if m > self.MoI)
 
         if not margins:
             return None
@@ -407,7 +407,7 @@ class WIGMGraphConstructor(AbstractGraphConstructor):
 
         return updated_wt_vec, tuple(transfer_values)
 
-    def _election_groups_within_lam(
+    def _election_groups_within_moi(
         self,
         v: ElectionState,
         *,
@@ -428,14 +428,14 @@ class WIGMGraphConstructor(AbstractGraphConstructor):
         within_quota = [
             int(candidate)
             for candidate in hopefuls
-            if v.tallies[candidate] >= self.quota - self.LAM
+            if v.tallies[candidate] >= self.quota - self.MoI
         ]
 
         if len(within_quota) > remaining_seats:
             within_quota = [
                 candidate
                 for candidate in within_quota
-                if v.tallies[candidate] >= highest_tally - self.LAM
+                if v.tallies[candidate] >= highest_tally - self.MoI
             ]
 
         required = frozenset()
@@ -443,7 +443,7 @@ class WIGMGraphConstructor(AbstractGraphConstructor):
             required = frozenset(
                 int(candidate)
                 for candidate in hopefuls
-                if v.tallies[candidate] > self.quota + self.LAM
+                if v.tallies[candidate] > self.quota + self.MoI
             )
             if len(required) > remaining_seats:
                 return ()
@@ -472,11 +472,11 @@ class WIGMGraphConstructor(AbstractGraphConstructor):
         if len(hopefuls) == 0:
             return
 
-        # Forced election: someone is safely above quota + LAM.
-        if np.any(v.tallies[hopefuls] > self.quota + self.LAM):
+        # Forced election: someone is safely above quota + MoI.
+        if np.any(v.tallies[hopefuls] > self.quota + self.MoI):
             edge_fpv_vec = self._edge_fpv_vec_from_cache(cache)
             if self.simultaneous:
-                for group in self._election_groups_within_lam(v, forced=True):
+                for group in self._election_groups_within_moi(v, forced=True):
                     updated_wt_vec, transfer_values = (
                         self._updated_wt_vec_for_election_group(group, cache, wt_vec)
                     )
@@ -498,11 +498,11 @@ class WIGMGraphConstructor(AbstractGraphConstructor):
                 return
 
             highest_tally = np.max(v.tallies[hopefuls])
-            winner_idx_within_lam = hopefuls[
-                np.where(v.tallies[hopefuls] >= highest_tally - self.LAM)[0]
+            winner_idx_within_moi = hopefuls[
+                np.where(v.tallies[hopefuls] >= highest_tally - self.MoI)[0]
             ]
 
-            for candidate in winner_idx_within_lam:
+            for candidate in winner_idx_within_moi:
                 group = (int(candidate),)
                 updated_wt_vec, transfer_values = (
                     self._updated_wt_vec_for_election_group(group, cache, wt_vec)
@@ -534,21 +534,21 @@ class WIGMGraphConstructor(AbstractGraphConstructor):
                 )
 
         else:
-            # Optional election edges for candidates within LAM of highest tally.
+            # Optional election edges for candidates within MoI of highest tally.
             highest_tally = np.max(v.tallies)
             elimination_margin_floor = float(max(highest_tally - self.quota, 0.0))
-            if highest_tally >= self.quota - self.LAM:
+            if highest_tally >= self.quota - self.MoI:
                 edge_fpv_vec = self._edge_fpv_vec_from_cache(cache)
                 if self.simultaneous:
-                    group_iter = self._election_groups_within_lam(v, forced=False)
+                    group_iter = self._election_groups_within_moi(v, forced=False)
                 else:
-                    winner_idx_within_lam = hopefuls[
+                    winner_idx_within_moi = hopefuls[
                         np.where(
                             v.tallies[hopefuls]
-                            >= max(highest_tally, self.quota) - self.LAM
+                            >= max(highest_tally, self.quota) - self.MoI
                         )[0]
                     ]
-                    group_iter = tuple((int(candidate),) for candidate in winner_idx_within_lam)
+                    group_iter = tuple((int(candidate),) for candidate in winner_idx_within_moi)
 
                 for group in group_iter:
                     updated_wt_vec, transfer_values = (
@@ -575,14 +575,14 @@ class WIGMGraphConstructor(AbstractGraphConstructor):
                         candidates=group,
                     )
 
-            # Optional elimination edges for candidates within LAM of lowest tally.
+            # Optional elimination edges for candidates within MoI of lowest tally.
             if len(hopefuls) > 0:
                 lowest_tally = np.min(v.tallies[hopefuls])
-                loser_idx_within_lam = hopefuls[
-                    np.where(v.tallies[hopefuls] <= lowest_tally + self.LAM)[0]
+                loser_idx_within_moi = hopefuls[
+                    np.where(v.tallies[hopefuls] <= lowest_tally + self.MoI)[0]
                 ]
 
-                for candidate in loser_idx_within_lam:
+                for candidate in loser_idx_within_moi:
                     margin = max(
                         v.tallies[candidate] - lowest_tally,
                         elimination_margin_floor,
@@ -787,7 +787,7 @@ class WIGMGraphConstructor(AbstractGraphConstructor):
         These are parent -> child edges where seated_at agrees and the child
         has exactly one fewer hopeful candidate.
 
-        Since these edges were missed by construction, assign them margin LAM.
+        Since these edges were missed by construction, assign them margin MoI.
         Returns the number of new edges added.
         """
         n_added = 0
@@ -819,7 +819,7 @@ class WIGMGraphConstructor(AbstractGraphConstructor):
                         action=EdgeAction.ELIMINATE,
                         candidate=eliminated,
                         status=EdgeStatus.DEFAULT,
-                        margin=float(self.LAM),
+                        margin=float(self.MoI),
                     )
 
                     if edge_is_new:

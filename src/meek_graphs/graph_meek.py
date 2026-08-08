@@ -33,7 +33,7 @@ class MeekGraphConstructor(AbstractGraphConstructor):
         self,
         profile,
         m: int,
-        LAM: float,
+        MoI: float,
         *,
         memory_lite: bool = False,
         trip_when_incoherent: bool = False,
@@ -47,7 +47,7 @@ class MeekGraphConstructor(AbstractGraphConstructor):
         super().__init__(
             profile,
             m,
-            LAM,
+            MoI,
             memory_lite=memory_lite,
             trip_when_incoherent=trip_when_incoherent,
         )
@@ -302,12 +302,12 @@ class MeekGraphConstructor(AbstractGraphConstructor):
         hopeful_tallies = v.tallies[hopefuls]
         margins: list[float] = []
 
-        if np.any(hopeful_tallies > context.quota + self.LAM):
+        if np.any(hopeful_tallies > context.quota + self.MoI):
             highest_tally = np.max(hopeful_tallies)
             margins.extend(
                 float(highest_tally - v.tallies[candidate])
                 for candidate in hopefuls
-                if highest_tally - v.tallies[candidate] > self.LAM
+                if highest_tally - v.tallies[candidate] > self.MoI
             )
         elif len(v.key.hopefuls) + v.degree == self.m:
             return None
@@ -317,7 +317,7 @@ class MeekGraphConstructor(AbstractGraphConstructor):
                 np.maximum(highest_tally, context.quota) - hopeful_tallies,
                 0.0,
             )
-            margins.extend(float(m) for m in election_margins if m > self.LAM)
+            margins.extend(float(m) for m in election_margins if m > self.MoI)
 
             lowest_tally = np.min(hopeful_tallies)
             elimination_margin_floor = float(max(highest_tally - context.quota, 0.0))
@@ -325,7 +325,7 @@ class MeekGraphConstructor(AbstractGraphConstructor):
                 hopeful_tallies - lowest_tally,
                 elimination_margin_floor,
             )
-            margins.extend(float(m) for m in elimination_margins if m > self.LAM)
+            margins.extend(float(m) for m in elimination_margins if m > self.MoI)
 
         if not margins:
             return None
@@ -591,13 +591,13 @@ class MeekGraphConstructor(AbstractGraphConstructor):
 
         hopeful_tallies = v.tallies[hopefuls]
 
-        if np.any(hopeful_tallies > context.quota + self.LAM):
+        if np.any(hopeful_tallies > context.quota + self.MoI):
             highest_tally = np.max(hopeful_tallies)
-            winner_idx_within_lam = hopefuls[
-                np.where(hopeful_tallies >= highest_tally - self.LAM)[0]
+            winner_idx_within_moi = hopefuls[
+                np.where(hopeful_tallies >= highest_tally - self.MoI)[0]
             ]
 
-            for candidate in winner_idx_within_lam:
+            for candidate in winner_idx_within_moi:
                 yield ChildProposal(
                     action=EdgeAction.FORCE_ELECT,
                     candidate=int(candidate),
@@ -615,14 +615,14 @@ class MeekGraphConstructor(AbstractGraphConstructor):
         else:
             highest_tally = np.max(hopeful_tallies)
             elimination_margin_floor = float(max(highest_tally - context.quota, 0.0))
-            if highest_tally > context.quota - self.LAM:
-                winner_idx_within_lam = hopefuls[
+            if highest_tally > context.quota - self.MoI:
+                winner_idx_within_moi = hopefuls[
                     np.where(
-                        hopeful_tallies >= max(highest_tally, context.quota) - self.LAM
+                        hopeful_tallies >= max(highest_tally, context.quota) - self.MoI
                     )[0]
                 ]
 
-                for candidate in winner_idx_within_lam:
+                for candidate in winner_idx_within_moi:
                     yield ChildProposal(
                         action=EdgeAction.ELECT,
                         candidate=int(candidate),
@@ -632,11 +632,11 @@ class MeekGraphConstructor(AbstractGraphConstructor):
                     )
 
             lowest_tally = np.min(hopeful_tallies)
-            loser_idx_within_lam = hopefuls[
-                np.where(hopeful_tallies <= lowest_tally + self.LAM)[0]
+            loser_idx_within_moi = hopefuls[
+                np.where(hopeful_tallies <= lowest_tally + self.MoI)[0]
             ]
 
-            for candidate in loser_idx_within_lam:
+            for candidate in loser_idx_within_moi:
                 margin = max(
                     v.tallies[candidate] - lowest_tally,
                     elimination_margin_floor,
@@ -727,7 +727,7 @@ class MeekGraphConstructor(AbstractGraphConstructor):
         1. elected_candidates are identical and hopefuls differ by one candidate;
         2. hopefuls are identical and elected_candidates differ by one candidate.
 
-        Since these edges were missed by construction, assign them margin LAM.
+        Since these edges were missed by construction, assign them margin MoI.
         Returns the number of new edges added.
         """
         n_added = 0
@@ -777,7 +777,7 @@ class MeekGraphConstructor(AbstractGraphConstructor):
                         action=action,
                         candidate=candidate,
                         status=EdgeStatus.DEFAULT,
-                        margin=float(self.LAM),
+                        margin=float(self.MoI),
                     )
 
                     if edge_is_new:
@@ -925,7 +925,7 @@ class MeekGraphConstructor(AbstractGraphConstructor):
         been removed from hopefuls and the supplied winners have been elected in
         the supplied order. Reverse traversal inserts ordinary forward edges
         from each discovered ancestor to its child. If the edge margin is below
-        self.LAM, the ancestor is expanded backward; otherwise the ancestor is
+        self.MoI, the ancestor is expanded backward; otherwise the ancestor is
         retained as a terminal frontier vertex.
         """
         print(f"Selected winners are: {[self.candidate_names[c] for c in winner_set]}")
@@ -1015,7 +1015,7 @@ class MeekGraphConstructor(AbstractGraphConstructor):
 
                 self.primary_parent_edge.setdefault(child_ref, edge_ref)
 
-                if proposal.margin is not None and proposal.margin < self.LAM:
+                if proposal.margin is not None and proposal.margin < self.MoI:
                     if (
                         parent.status == ElectionStatus.TERMINAL
                         and parent.degree < self.m
@@ -1246,7 +1246,7 @@ class MeekGraphConstructor(AbstractGraphConstructor):
                     candidate=candidate,
                     status=(
                         EdgeStatus.NOT_FACTUAL
-                        if elected_deficit_margin > self.LAM
+                        if elected_deficit_margin > self.MoI
                         else EdgeStatus.DEFAULT
                     ),
                     margin=elected_deficit_margin,
@@ -1264,7 +1264,7 @@ class MeekGraphConstructor(AbstractGraphConstructor):
                 action = EdgeAction.FORCE_ELECT
             status = (
                 EdgeStatus.NOT_FACTUAL
-                if margin > self.LAM
+                if margin > self.MoI
                 else EdgeStatus.DEFAULT
             )
 
@@ -1291,7 +1291,7 @@ class MeekGraphConstructor(AbstractGraphConstructor):
                 candidate=candidate,
                 status=(
                     EdgeStatus.NOT_FACTUAL
-                    if margin > self.LAM
+                    if margin > self.MoI
                     else EdgeStatus.DEFAULT
                 ),
                 margin=float(margin),
@@ -1342,7 +1342,7 @@ class MeekGraphConstructor(AbstractGraphConstructor):
         Return False exactly when reverse construction reached the ordinary root.
 
         In reverse construction, the seed leaf is an alternate winner set. A
-        coherent LAM is one where the reverse search fails to connect that leaf
+        coherent MoI is one where the reverse search fails to connect that leaf
         back to the all-hopeful root state.
         """
         root_included = self.root_ref is not None

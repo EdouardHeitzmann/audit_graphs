@@ -23,7 +23,7 @@ def make_mentions_compiler() -> CobraCompiler:
             2,
             ["Strong0", "Strong1", "Weak", "VeryStrong"],
             EdgeAction.ELIMINATE,
-            LAM=5,
+            MoI=5,
             quota=150,
             N=200,
             noise_level_guess=0.0,

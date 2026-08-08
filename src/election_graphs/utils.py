@@ -90,7 +90,7 @@ def weak_candidates_from_strong(
     n_candidates: int,
     strong_candidates: Iterable[int],
     *,
-    LAM: float,
+    MoI: float,
     quota: float,
     verify_strong: bool = False,
     masked_candidates: Iterable[int] | None = None,
@@ -98,7 +98,7 @@ def weak_candidates_from_strong(
     """
     Determine the weak set induced by a prescribed strong set.
 
-    A non-strong candidate is weak when its maximum possible tallies are at least LAM
+    A non-strong candidate is weak when its maximum possible tallies are at least MoI
     below the smallest current first-preference tally among strong candidates.
     """
     strong = _normalize_candidates(strong_candidates)
@@ -118,7 +118,7 @@ def weak_candidates_from_strong(
         bad_strong = [
             candidate
             for candidate in active_strong
-            if strong_only_tallies[candidate] + LAM >= quota
+            if strong_only_tallies[candidate] + MoI >= quota
         ]
         if bad_strong:
             details = ", ".join(
@@ -126,7 +126,7 @@ def weak_candidates_from_strong(
                 for candidate in sorted(bad_strong)
             )
             raise ValueError(
-                "Strong candidates must remain below quota minus LAM when "
+                "Strong candidates must remain below quota minus MoI when "
                 f"standing alone; violating tallies are {details}."
             )
 
@@ -151,7 +151,7 @@ def weak_candidates_from_strong(
         if (
             candidate not in active_strong
             and candidate not in masked
-            and maximum_possible_tallies[candidate] + LAM <= smallest_strong_fpv
+            and maximum_possible_tallies[candidate] + MoI <= smallest_strong_fpv
         )
     )
 
@@ -164,7 +164,7 @@ def search_strong_weak_candidates(
     n_candidates: int,
     *,
     remaining_seats: int,
-    LAM: float,
+    MoI: float,
     quota: float,
     masked_candidates: Iterable[int] | None = None,
 ) -> tuple[frozenset[int], frozenset[int], NDArray[np.float64]]:
@@ -209,7 +209,7 @@ def search_strong_weak_candidates(
             allowed_candidates=strong,
             masked_candidates=masked,
         )
-        if any(strong_only_tallies[candidate] + LAM >= quota for candidate in strong):
+        if any(strong_only_tallies[candidate] + MoI >= quota for candidate in strong):
             continue
 
         weak, mentions = weak_candidates_from_strong(
@@ -217,7 +217,7 @@ def search_strong_weak_candidates(
             wt_vec,
             n_candidates,
             strong,
-            LAM=LAM,
+            MoI=MoI,
             quota=quota,
             verify_strong=False,
             masked_candidates=masked,
@@ -234,7 +234,7 @@ def search_strong_weak_candidates(
     if best_strong is None:
         raise ValueError(
             "Could not find a valid strong set whose condensed tallies stay "
-            "below quota minus LAM."
+            "below quota minus MoI."
         )
 
     return best_strong, best_weak, best_mentions
@@ -245,7 +245,7 @@ def analyze_black_box_seed(
     very_strong: Iterable[str | int],
     strong: Iterable[str | int],
     w: str | int,
-    LAM: float,
+    MoI: float,
     simultaneous: bool = True,
     *,
     m: int | None = None,
@@ -316,7 +316,7 @@ def analyze_black_box_seed(
         eligible = [
             candidate
             for candidate in pending
-            if tallies[candidate] > quota + LAM
+            if tallies[candidate] > quota + MoI
         ]
         eligible.sort(
             key=lambda candidate: (-tallies[candidate], candidates.index(candidate))
@@ -328,7 +328,7 @@ def analyze_black_box_seed(
                 for candidate in sorted(pending, key=candidates.index)
             )
             raise ValueError(
-                "The remaining very-strong candidates are not more than LAM "
+                "The remaining very-strong candidates are not more than MoI "
                 f"above quota {quota:.6g}: {details}."
             )
 
@@ -414,7 +414,7 @@ def analyze_black_box_seed(
         )
 
     raw_maximum_surplus = max(surplus_by_candidate.values(), default=0.0)
-    maximum_surplus = raw_maximum_surplus + LAM
+    maximum_surplus = raw_maximum_surplus + MoI
     maximum_transfer_value = maximum_surplus / (quota + maximum_surplus)
     maximum_tallies: dict[str, float] = {}
 
@@ -433,7 +433,7 @@ def analyze_black_box_seed(
     weak = tuple(
         candidate
         for candidate in bounded_candidates
-        if maximum_tallies[candidate] + LAM <= lowest_strong_tally
+        if maximum_tallies[candidate] + MoI <= lowest_strong_tally
     )
     in_between = tuple(
         candidate for candidate in bounded_candidates if candidate not in weak

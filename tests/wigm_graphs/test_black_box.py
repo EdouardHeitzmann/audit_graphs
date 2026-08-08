@@ -61,7 +61,7 @@ def _build(*, memory_lite: bool = False) -> BlackBoxWIGMGraphConstructor:
     graph = BlackBoxWIGMGraphConstructor(
         _profile(),
         m=3,
-        LAM=0,
+        MoI=0,
         simultaneous=False,
         memory_lite=memory_lite,
     )
@@ -165,7 +165,7 @@ def test_seeded_build_accepts_progress_alias(capsys):
     graph = BlackBoxWIGMGraphConstructor(
         _profile(),
         m=3,
-        LAM=0,
+        MoI=0,
         simultaneous=False,
     )
     graph.seeded_build(
@@ -184,7 +184,7 @@ def test_allow_seed_merges_uses_the_maximal_uncertainty_mask():
     merged_graph = BlackBoxWIGMGraphConstructor(
         _profile(),
         m=3,
-        LAM=0,
+        MoI=0,
         simultaneous=False,
     ).seeded_build(
         strong_candidates=["S1", "S2"],
@@ -219,7 +219,7 @@ def test_allow_seed_merges_recomputes_shared_mask_in_memory_lite_mode():
     graph = BlackBoxWIGMGraphConstructor(
         _profile(),
         m=3,
-        LAM=0,
+        MoI=0,
         simultaneous=False,
         memory_lite=True,
     ).seeded_build(
@@ -270,7 +270,7 @@ def test_edge_margins_never_mix_transfer_scenarios():
     graph = BlackBoxWIGMGraphConstructor(
         _profile(),
         m=3,
-        LAM=0,
+        MoI=0,
         simultaneous=False,
     )
     hopefuls = np.array([2, 3, 4], dtype=int)
@@ -311,7 +311,7 @@ def test_simultaneous_margin_uses_one_scenario_for_the_whole_group():
     graph = BlackBoxWIGMGraphConstructor(
         _profile(),
         m=3,
-        LAM=0,
+        MoI=0,
         simultaneous=True,
     )
     graph.quota = 30.0
@@ -498,7 +498,7 @@ def test_black_box_build_with_very_strong_candidate_uses_preseed_margin_logic():
     graph = BlackBoxWIGMGraphConstructor(
         _profile_with_very_strong_candidate(),
         m=3,
-        LAM=0,
+        MoI=0,
         simultaneous=False,
     ).seeded_build(
         very_strong_candidates=["VS"],

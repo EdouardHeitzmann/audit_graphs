@@ -66,7 +66,7 @@ class DeltaFractionSearch:
 @dataclass(frozen=True, slots=True)
 class DriverStatistics:
     total_ballot_wt: int
-    optimal_lam: float
+    optimal_moi: float
     candidate_count: int
     seats: int
     noise_sample_sizes: tuple[int, ...]
@@ -304,7 +304,7 @@ def collect_driver_statistics(
     memory_lite: bool = True,
     simultaneous: bool = True,
     verify_output: bool = False,
-    enforced_LAM: int | None = None,
+    enforced_MoI: int | None = None,
     batch_elim: bool = False,
     skip_mismatch: bool = False,
     suppress_driver_output: bool = True,
@@ -317,14 +317,14 @@ def collect_driver_statistics(
         trials=trials,
         success_cutoff=success_cutoff,
     )
-    if enforced_LAM is not None and (
-        isinstance(enforced_LAM, bool) or not isinstance(enforced_LAM, int)
+    if enforced_MoI is not None and (
+        isinstance(enforced_MoI, bool) or not isinstance(enforced_MoI, int)
     ):
-        raise TypeError("enforced_LAM must be an int or None.")
-    if enforced_LAM is not None and enforced_LAM < 0:
-        raise ValueError("enforced_LAM must be non-negative.")
-    if batch_elim and enforced_LAM is None:
-        raise ValueError("batch_elim=True requires an enforced_LAM.")
+        raise TypeError("enforced_MoI must be an int or None.")
+    if enforced_MoI is not None and enforced_MoI < 0:
+        raise ValueError("enforced_MoI must be non-negative.")
+    if batch_elim and enforced_MoI is None:
+        raise ValueError("batch_elim=True requires an enforced_MoI.")
     if delta_sample_sizes is not None:
         delta_sample_sizes = tuple(float(value) for value in delta_sample_sizes)
         if not delta_sample_sizes:
@@ -356,20 +356,20 @@ def collect_driver_statistics(
     m = int(m)
     seeds = tuple(range(int(base_seed), int(base_seed) + int(trials)))
     if verbose:
-        if enforced_LAM is None:
+        if enforced_MoI is None:
             print(
                 f"Loading {source_description} and searching for the optimal unseeded "
-                "WIGM LAM."
+                "WIGM MoI."
             )
         else:
             build_kind = "batch-elimination seeded" if batch_elim else "unseeded"
             print(
                 f"Loading {source_description} and constructing a {build_kind} "
                 "WIGM graph "
-                f"at enforced LAM {enforced_LAM}."
+                f"at enforced MoI {enforced_MoI}."
             )
     with _driver_output_context(suppress_driver_output):
-        if enforced_LAM is None:
+        if enforced_MoI is None:
             graph = heap_based_search(
                 profile=pf,
                 m=m,
@@ -385,7 +385,7 @@ def collect_driver_statistics(
             graph = constructor_cls(
                 pf,
                 m=m,
-                LAM=float(enforced_LAM),
+                MoI=float(enforced_MoI),
                 memory_lite=bool(memory_lite),
                 simultaneous=bool(simultaneous),
             )
@@ -403,8 +403,8 @@ def collect_driver_statistics(
             "Statistics experiment graph seeding state does not match batch_elim."
         )
     graph_simultaneous = bool(getattr(graph, "simultaneous", simultaneous))
-    if verbose and enforced_LAM is None:
-        print(f"Optimal LAM found: M = {float(graph.LAM):g}.")
+    if verbose and enforced_MoI is None:
+        print(f"Optimal MoI found: M = {float(graph.MoI):g}.")
 
     if skip_mismatch:
         noise_sample_sizes: tuple[int, ...] = ()
@@ -443,7 +443,7 @@ def collect_driver_statistics(
     )
     statistics = DriverStatistics(
         total_ballot_wt=int(round(float(pf.total_ballot_wt))),
-        optimal_lam=float(graph.LAM),
+        optimal_moi=float(graph.MoI),
         candidate_count=len(pf.candidates),
         seats=m,
         noise_sample_sizes=noise_sample_sizes,
@@ -463,7 +463,7 @@ def print_driver_statistics(
 ) -> None:
     print("End-to-end audit statistics:")
     print(f"  N = {statistics.total_ballot_wt}")
-    print(f"  M = {statistics.optimal_lam:g}")
+    print(f"  M = {statistics.optimal_moi:g}")
     print(f"  C = {statistics.candidate_count}")
     print(f"  m = {statistics.seats}")
     if statistics.average_noise_sample_size is None:
@@ -504,7 +504,7 @@ def end_to_end_statistics_tester(
     memory_lite: bool = True,
     simultaneous: bool = True,
     verify_output: bool = False,
-    enforced_LAM: int | None = None,
+    enforced_MoI: int | None = None,
     batch_elim: bool = False,
     skip_mismatch: bool = False,
     suppress_driver_output: bool = True,
@@ -526,7 +526,7 @@ def end_to_end_statistics_tester(
         memory_lite=memory_lite,
         simultaneous=simultaneous,
         verify_output=verify_output,
-        enforced_LAM=enforced_LAM,
+        enforced_MoI=enforced_MoI,
         batch_elim=batch_elim,
         skip_mismatch=skip_mismatch,
         suppress_driver_output=suppress_driver_output,
@@ -585,7 +585,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         help="construct a simultaneous graph (default: enabled)",
     )
     parser.add_argument("--verify-output", action="store_true")
-    parser.add_argument("--enforced-lam", type=int)
+    parser.add_argument("--enforced-moi", type=int)
     parser.add_argument("--batch-elim", action="store_true")
     parser.add_argument("--skip-mismatch", action="store_true")
     parser.add_argument("--show-driver-output", action="store_true")
@@ -604,7 +604,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         alpha_K=args.alpha_k,
         simultaneous=args.simultaneous,
         verify_output=args.verify_output,
-        enforced_LAM=args.enforced_lam,
+        enforced_MoI=args.enforced_moi,
         batch_elim=args.batch_elim,
         skip_mismatch=args.skip_mismatch,
         suppress_driver_output=not args.show_driver_output,

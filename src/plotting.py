@@ -220,20 +220,20 @@ def _wrap_edge_label_text(label: str, width: int = 7) -> str:
         break_on_hyphens=False,
     )
 
-def _visible_refs(graph, lam_restriction=None) -> set:
+def _visible_refs(graph, moi_restriction=None) -> set:
     """
     Return the vertex refs that should be plotted.
 
-    If lam_restriction is None, every vertex is visible.
-    Otherwise, only vertices with tightest_margin < lam_restriction are visible.
+    If moi_restriction is None, every vertex is visible.
+    Otherwise, only vertices with tightest_margin < moi_restriction are visible.
     """
     visible = set()
 
     for layer in graph.layers:
         for v in layer:
-            if lam_restriction is None:
+            if moi_restriction is None:
                 visible.add(v.ref)
-            elif v.tightest_margin is not None and v.tightest_margin < lam_restriction:
+            elif v.tightest_margin is not None and v.tightest_margin < moi_restriction:
                 visible.add(v.ref)
 
     return visible
@@ -486,7 +486,7 @@ def plot_wigm_graph(
     vertical_spacing=1.5,
     xpad=0.75,
     ypad=0.75,
-    lam_restriction=None,
+    moi_restriction=None,
     plot_horizontal=False,
     seeded_build=None,
     parallel_label_spacing=None,
@@ -521,7 +521,7 @@ def plot_wigm_graph(
     if is_black_box_graph:
         seeded_build = True
 
-    visible_refs = _visible_refs(graph, lam_restriction=lam_restriction)
+    visible_refs = _visible_refs(graph, moi_restriction=moi_restriction)
     hidden_edge_refs = set()
     seed_connector_ref = getattr(graph, "_seed_connector_ref", None)
     seed_connector_label = None
@@ -542,7 +542,7 @@ def plot_wigm_graph(
             seed_bar_thickness = max(0.55, 0.08 * len(seed_connector_label))
 
     if not visible_refs:
-        print("No vertices satisfy the lam_restriction")
+        print("No vertices satisfy the moi_restriction")
         return
 
     positions = _compute_layer_positions(

@@ -39,7 +39,7 @@ def test_expand_margin_admits_optional_election_at_exact_boundary():
     incremental = WIGMGraphConstructor(
         profile,
         m=1,
-        LAM=1,
+        MoI=1,
         memory_lite=True,
     )
     incremental.build()
@@ -48,7 +48,7 @@ def test_expand_margin_admits_optional_election_at_exact_boundary():
     direct = WIGMGraphConstructor(
         profile,
         m=1,
-        LAM=10,
+        MoI=10,
         memory_lite=True,
     )
     direct.build()
@@ -77,8 +77,8 @@ def test_heap_search_can_verify_fresh_final_graph():
         )
 
     assert graph.quota == 51.0
-    assert graph.LAM == 25.0
-    assert graph.LAM < graph.quota / 2.0
+    assert graph.MoI == 25.0
+    assert graph.MoI < graph.quota / 2.0
     assert not graph.used_seeded_build
 
 
@@ -94,8 +94,8 @@ def test_heap_search_half_quota_cap_is_strict_for_even_quota():
         )
 
     assert graph.quota == 50.0
-    assert graph.LAM == 24.0
-    assert graph.LAM < graph.quota / 2.0
+    assert graph.MoI == 24.0
+    assert graph.MoI < graph.quota / 2.0
 
 
 def test_heap_search_can_override_half_quota_cap():
@@ -107,12 +107,12 @@ def test_heap_search_can_override_half_quota_cap():
             m=1,
             constructor_cls=WIGMGraphConstructor,
             memory_lite=True,
-            allow_lam_at_or_above_half_quota=True,
+            allow_moi_at_or_above_half_quota=True,
         )
 
     assert graph.quota == 51.0
-    assert graph.LAM == 30.0
-    assert graph.LAM >= graph.quota / 2.0
+    assert graph.MoI == 30.0
+    assert graph.MoI >= graph.quota / 2.0
 
 
 def test_heap_search_uses_root_vertex_quota_for_meek_graphs():
@@ -127,5 +127,5 @@ def test_heap_search_uses_root_vertex_quota_for_meek_graphs():
         )
 
     root_quota = graph.vertex(graph.root_ref).quota
-    assert graph.LAM == 25.0
-    assert graph.LAM < root_quota / 2.0
+    assert graph.MoI == 25.0
+    assert graph.MoI < root_quota / 2.0

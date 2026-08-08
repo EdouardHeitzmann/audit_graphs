@@ -61,7 +61,7 @@ def test_driver_initializes_from_seeded_graph_with_very_strong_preseed_path():
     graph = SeededWIGMGraphConstructor(
         Profile(),
         m=3,
-        LAM=50,
+        MoI=50,
         simultaneous=True,
         memory_lite=True,
     )
@@ -112,8 +112,8 @@ def test_driver_initializes_from_seeded_graph_with_very_strong_preseed_path():
         isinstance(compiler, CobraMentionsNoiseFilterCompiler)
         for compiler in noise_driver.compilers
     )
-    assert {compiler.LAM for compiler in noise_driver.compilers} == {
-        float(graph.LAM)
+    assert {compiler.MoI for compiler in noise_driver.compilers} == {
+        float(graph.MoI)
     }
     assert all(
         compiler.radius == 2.0 * compiler.critical_margin
@@ -148,7 +148,7 @@ def test_v2_driver_initializes_batch_seeded_mentions_compilers():
     graph = SeededWIGMGraphConstructor(
         Profile(),
         m=3,
-        LAM=50,
+        MoI=50,
         simultaneous=True,
         memory_lite=True,
     )

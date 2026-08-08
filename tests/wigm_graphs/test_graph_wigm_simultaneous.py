@@ -74,7 +74,7 @@ def test_simultaneous_optional_election_groups_match_quota_window_example():
     constructor = WIGMGraphConstructor(
         profile,
         m=3,
-        LAM=150,
+        MoI=150,
         simultaneous=True,
         memory_lite=True,
     )
@@ -99,7 +99,7 @@ def test_simultaneous_groups_do_not_exceed_remaining_seats():
     constructor = WIGMGraphConstructor(
         profile,
         m=3,
-        LAM=150,
+        MoI=150,
         simultaneous=True,
         memory_lite=True,
     )
@@ -131,7 +131,7 @@ def test_forced_winner_is_required_in_simultaneous_groups():
     constructor = WIGMGraphConstructor(
         profile,
         m=3,
-        LAM=150,
+        MoI=150,
         simultaneous=True,
         memory_lite=True,
     )
@@ -147,7 +147,7 @@ def test_too_many_quota_window_candidates_restricts_to_highest_window():
     constructor = WIGMGraphConstructor(
         profile,
         m=1,
-        LAM=150,
+        MoI=150,
         simultaneous=True,
         memory_lite=True,
     )
@@ -176,7 +176,7 @@ def test_simultaneous_child_cache_removes_every_elected_candidate():
     constructor = WIGMGraphConstructor(
         profile,
         m=3,
-        LAM=150,
+        MoI=150,
         simultaneous=True,
         memory_lite=False,
     )
@@ -223,7 +223,7 @@ def test_full_build_runs_with_simultaneous_elections_enabled():
     constructor = WIGMGraphConstructor(
         profile,
         m=2,
-        LAM=70,
+        MoI=70,
         simultaneous=True,
         memory_lite=False,
     )
@@ -252,7 +252,7 @@ def test_seeded_very_strong_simultaneous_walk_waits_until_candidate_is_forced():
     constructor = SeededWIGMGraphConstructor(
         profile,
         m=3,
-        LAM=50,
+        MoI=50,
         simultaneous=True,
         memory_lite=True,
     )
@@ -292,7 +292,7 @@ def test_seeded_plot_auto_detects_build_and_keeps_simultaneous_labels_apart(
     constructor = SeededWIGMGraphConstructor(
         profile,
         m=3,
-        LAM=50,
+        MoI=50,
         simultaneous=True,
         memory_lite=True,
     )
@@ -363,7 +363,7 @@ def test_seeded_build_reports_phase_and_memory_diagnostics(capsys):
     constructor = SeededWIGMGraphConstructor(
         profile,
         m=1,
-        LAM=0,
+        MoI=0,
         memory_lite=False,
     )
 
@@ -390,7 +390,7 @@ def test_seeded_build_diagnostics_can_be_disabled(capsys):
         ballot_matrix=np.array([[0, 1], [1, 0]], dtype=np.int8),
         wt_vec=np.array([10.0, 1.0]),
     )
-    constructor = SeededWIGMGraphConstructor(profile, m=1, LAM=0)
+    constructor = SeededWIGMGraphConstructor(profile, m=1, MoI=0)
 
     constructor.seeded_build(
         very_strong_candidates=(),
@@ -420,7 +420,7 @@ def test_seeded_very_strong_candidates_not_forced_are_not_preseated():
     constructor = SeededWIGMGraphConstructor(
         profile,
         m=3,
-        LAM=150,
+        MoI=150,
         simultaneous=True,
         memory_lite=True,
     )
@@ -460,12 +460,12 @@ def test_seeded_very_strong_non_simultaneous_picks_highest_forced_first():
     constructor = SeededWIGMGraphConstructor(
         profile,
         m=3,
-        LAM=50,
+        MoI=50,
         simultaneous=False,
         memory_lite=True,
     )
 
-    with pytest.warns(RuntimeWarning, match="within LAM of the maximum tally"):
+    with pytest.warns(RuntimeWarning, match="within MoI of the maximum tally"):
         constructor.seeded_build(
             very_strong_candidates={0, 1},
             strong_candidates={2},
@@ -503,7 +503,7 @@ def test_seeded_very_strong_preseed_vertices_store_tallies_for_audit_driver():
     constructor = SeededWIGMGraphConstructor(
         profile,
         m=3,
-        LAM=50,
+        MoI=50,
         simultaneous=True,
         memory_lite=True,
     )

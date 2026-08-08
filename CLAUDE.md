@@ -17,7 +17,7 @@ There are three main procedures we use to construct a graph: plausible depth-fir
 
 ### Plausible DFS.
 
-The terms "Least Auditable Margin" (`LAM`) and "Margin of Insecurity" (`MoI`) are interchangeable (the former is the legacy version of the latter).
+The terms "Least Auditable Margin" (`LAM`, legacy) and "Margin of Insecurity" (`MoI`) are interchangeable; the code now uses `MoI` throughout.
 They both describe an integer $M$ that is fixed ahead of graph construction.
 Starting from the root vertex, the DFS approach follows any edge that is "plausible," in the sense that it could have been the edge chosen by the true tabulation algorithm if a margin of less than $M$ votes flipped between two tallies in the edge's base vertex.
 These are contained in `src/wigm_graphs/graph_wigm.py`.

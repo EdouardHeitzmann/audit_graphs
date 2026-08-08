@@ -75,7 +75,7 @@ def build_synthetic_graph() -> WIGMGraphConstructor:
     graph = WIGMGraphConstructor(
         synthetic_profile(),
         m=3,
-        LAM=9_000,
+        MoI=9_000,
         memory_lite=True,
         simultaneous=True,
     )
@@ -282,7 +282,7 @@ def test_seeded_basepoint_uses_unseeded_weights_for_transfer_recursion():
     graph = SeededWIGMGraphConstructor(
         Profile(),
         m=3,
-        LAM=50,
+        MoI=50,
         simultaneous=True,
         memory_lite=True,
     )
@@ -600,7 +600,7 @@ def test_global_audit_driver_noise_filters_use_escape_critical_margins():
         )
         for compiler in driver.compilers
     )
-    assert {compiler.LAM for compiler in driver.compilers} == {float(graph.LAM)}
+    assert {compiler.MoI for compiler in driver.compilers} == {float(graph.MoI)}
     assert all(
         compiler.radius == pytest.approx(2.0 * compiler.critical_margin)
         for compiler in driver.compilers

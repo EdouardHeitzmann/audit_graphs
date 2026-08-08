@@ -26,7 +26,7 @@ def test_analyze_black_box_seed_seats_and_bounds_candidates():
         very_strong=[0],
         strong=["B"],
         w=2,
-        LAM=0,
+        MoI=0,
         simultaneous=True,
         m=2,
         quota=30,
@@ -66,7 +66,7 @@ def test_analyze_black_box_seed_requires_quota_information():
             very_strong=[],
             strong=["A"],
             w="B",
-            LAM=0,
+            MoI=0,
             verbose=False,
         )
     except ValueError as error:
@@ -75,7 +75,7 @@ def test_analyze_black_box_seed_requires_quota_information():
         raise AssertionError("Expected missing quota information to be rejected.")
 
 
-def test_lam_inflated_surplus_propagates_to_transfer_and_candidate_tallies():
+def test_moi_inflated_surplus_propagates_to_transfer_and_candidate_tallies():
     profile = NumpyRankProfile(
         ballot_matrix=np.array(
             [
@@ -95,7 +95,7 @@ def test_lam_inflated_surplus_propagates_to_transfer_and_candidate_tallies():
         very_strong=[],
         strong=["Strong"],
         w="W",
-        LAM=5,
+        MoI=5,
         quota=20,
         verbose=False,
     )
@@ -126,7 +126,7 @@ def test_maximum_tally_gives_uncertain_rows_full_weight():
         very_strong=[],
         strong=["Strong"],
         w="W",
-        LAM=0,
+        MoI=0,
         m=1,
         quota=20,
         verbose=False,

@@ -121,7 +121,7 @@ class BlackBoxWIGMGraphConstructor(SeededWIGMGraphConstructor):
             [self.candidate_names[candidate] for candidate in very_strong],
             [self.candidate_names[candidate] for candidate in strong],
             self.candidate_names[w],
-            self.LAM,
+            self.MoI,
             simultaneous=self.simultaneous,
             m=self.m,
             quota=self.quota,
@@ -560,7 +560,7 @@ class BlackBoxWIGMGraphConstructor(SeededWIGMGraphConstructor):
         excluded = [
             float(proposal.margin)
             for proposal in proposals
-            if proposal.margin is not None and proposal.margin > self.LAM
+            if proposal.margin is not None and proposal.margin > self.MoI
         ]
         return min(excluded, default=None)
 
@@ -619,7 +619,7 @@ class BlackBoxWIGMGraphConstructor(SeededWIGMGraphConstructor):
             int(candidate)
             for candidate in hopefuls
             if np.all(
-                bounded.certain[:, candidate] > self.quota + self.LAM
+                bounded.certain[:, candidate] > self.quota + self.MoI
             )
         )
         election_margin = {
@@ -633,7 +633,7 @@ class BlackBoxWIGMGraphConstructor(SeededWIGMGraphConstructor):
         eligible = tuple(
             int(candidate)
             for candidate in hopefuls
-            if include_all or election_margin[int(candidate)] <= self.LAM
+            if include_all or election_margin[int(candidate)] <= self.MoI
         )
 
         if self.simultaneous:
@@ -657,7 +657,7 @@ class BlackBoxWIGMGraphConstructor(SeededWIGMGraphConstructor):
                 hopefuls,
                 tuple(group),
             )
-            if not include_all and margin > self.LAM:
+            if not include_all and margin > self.MoI:
                 continue
             yield ChildProposal(
                 action=(
@@ -683,7 +683,7 @@ class BlackBoxWIGMGraphConstructor(SeededWIGMGraphConstructor):
                 hopefuls,
                 int(candidate),
             )
-            if include_all or margin <= self.LAM:
+            if include_all or margin <= self.MoI:
                 yield ChildProposal(
                     action=EdgeAction.ELIMINATE,
                     candidate=int(candidate),

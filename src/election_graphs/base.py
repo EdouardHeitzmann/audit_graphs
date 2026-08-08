@@ -24,7 +24,7 @@ class ChildProposal:
     """
     Produced by election logic when expanding a vertex.
 
-    `margin` is edge-local: it is the LAM threshold needed for this parent
+    `margin` is edge-local: it is the MoI threshold needed for this parent
     to justify this child edge. It does not incorporate the parent's own
     tightest_margin.
     """
@@ -87,7 +87,7 @@ class AbstractGraphConstructor(ABC):
         self,
         profile: Any,
         m: int,
-        LAM: float,
+        MoI: float,
         *,
         memory_lite: bool = False,
         trip_when_incoherent: bool = False,
@@ -96,7 +96,7 @@ class AbstractGraphConstructor(ABC):
         self.candidate_names = list(profile.candidates)
         self.n_candidates = len(self.candidate_names)
         self.m = m
-        self.LAM = LAM
+        self.MoI = MoI
         self.memory_lite = memory_lite
         self.trip_when_incoherent = trip_when_incoherent
 
@@ -385,7 +385,7 @@ class AbstractGraphConstructor(ABC):
         v: ElectionState,
         context: Any,
     ) -> float | None:
-        """Return the smallest edge margin not currently included by self.LAM."""
+        """Return the smallest edge margin not currently included by self.MoI."""
 
     @abstractmethod
     def _materialize_cache_from_state(self, ref: VertexRef) -> Any:
@@ -482,34 +482,34 @@ class AbstractGraphConstructor(ABC):
         self._maybe_drop_cache(ref)
         self._raise_pending_incoherent_leaf_error()
 
-    def expand_margin(self, new_lam: float):
+    def expand_margin(self, new_moi: float):
         """
-        Expand this graph in-place from its current LAM to a larger LAM.
+        Expand this graph in-place from its current MoI to a larger MoI.
 
         Existing vertices are scanned from oldest layer to newest. Vertices
-        whose stored next_margin is newly admitted by new_lam are re-expanded
+        whose stored next_margin is newly admitted by new_moi are re-expanded
         from a freshly materialized cache, and ordinary DFS then fills the new
         branches.
         """
-        new_lam = float(new_lam)
-        if new_lam < self.LAM:
-            raise ValueError("expand_margin requires new_lam >= current LAM.")
+        new_moi = float(new_moi)
+        if new_moi < self.MoI:
+            raise ValueError("expand_margin requires new_moi >= current MoI.")
 
-        old_lam = float(self.LAM)
-        self.LAM = new_lam
+        old_moi = float(self.MoI)
+        self.MoI = new_moi
 
         for layer in list(self.layers):
             for vertex in list(layer):
                 if vertex.status == ElectionStatus.TERMINAL:
                     continue
 
-                if vertex.next_margin is None or vertex.next_margin > new_lam:
+                if vertex.next_margin is None or vertex.next_margin > new_moi:
                     continue
 
                 self._expand_vertex_margin_window(
                     vertex.ref,
-                    old_lam=old_lam,
-                    new_lam=new_lam,
+                    old_moi=old_moi,
+                    new_moi=new_moi,
                 )
 
                 while self.stack:
@@ -531,8 +531,8 @@ class AbstractGraphConstructor(ABC):
         self,
         ref: VertexRef,
         *,
-        old_lam: float,
-        new_lam: float,
+        old_moi: float,
+        new_moi: float,
     ) -> None:
         v = self.vertex(ref)
         cache = self._materialize_cache_from_state(ref)
@@ -547,7 +547,7 @@ class AbstractGraphConstructor(ABC):
         proposals = [
             proposal
             for proposal in self._propose_children(v, cache, context)
-            if proposal.margin is None or old_lam < proposal.margin <= new_lam
+            if proposal.margin is None or old_moi < proposal.margin <= new_moi
         ]
 
         previous_deferred = self._deferred_enqueue_refs
@@ -794,9 +794,9 @@ class AbstractGraphConstructor(ABC):
         self._pending_incoherent_leaf_error = None
         raise error
 
-    def restrict_margin(self, new_lam: float):
+    def restrict_margin(self, new_moi: float):
         """
-        Restrict a completed graph to edges with margin at most new_lam.
+        Restrict a completed graph to edges with margin at most new_moi.
 
         This removes vertices no longer reachable from the root, compacts vertex
         and edge refs, rebuilds lookup indexes, and recomputes path
@@ -805,14 +805,14 @@ class AbstractGraphConstructor(ABC):
         if self.root_ref is None:
             raise ValueError("Cannot restrict margin before root is initialized.")
 
-        new_lam = float(new_lam)
+        new_moi = float(new_moi)
 
         kept_old_edges: list[ElectionEdge] = []
         adjacency: dict[VertexRef, list[ElectionEdge]] = defaultdict(list)
 
         for edge_layer in self.edge_layers:
             for edge in edge_layer:
-                if edge.margin is not None and edge.margin > new_lam:
+                if edge.margin is not None and edge.margin > new_moi:
                     continue
 
                 kept_old_edges.append(edge)
@@ -935,7 +935,7 @@ class AbstractGraphConstructor(ABC):
                     edge.src
                 ).path_multiplicity
 
-        self.LAM = new_lam
+        self.MoI = new_moi
         self.stack.clear()
         self.enqueued = set()
         self.pending_primary_children = defaultdict(int)

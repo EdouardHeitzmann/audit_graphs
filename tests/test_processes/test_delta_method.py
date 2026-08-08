@@ -51,7 +51,7 @@ def degree_zero_case():
     graph = WIGMGraphConstructor(
         profile,
         m=1,
-        LAM=5,
+        MoI=5,
         memory_lite=True,
         simultaneous=True,
     )
@@ -77,7 +77,7 @@ def multi_edge_case():
     graph = WIGMGraphConstructor(
         profile,
         m=1,
-        LAM=5,
+        MoI=5,
         memory_lite=True,
         simultaneous=True,
     )
@@ -104,7 +104,7 @@ def seeded_batch_case():
     graph = SeededWIGMGraphConstructor(
         profile,
         m=3,
-        LAM=50,
+        MoI=50,
         memory_lite=True,
         simultaneous=True,
     )
@@ -147,7 +147,7 @@ def seeded_multiweak_batch_case():
     graph = SeededWIGMGraphConstructor(
         profile,
         m=3,
-        LAM=50,
+        MoI=50,
         memory_lite=True,
         simultaneous=True,
     )

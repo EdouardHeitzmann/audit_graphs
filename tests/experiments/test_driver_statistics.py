@@ -55,7 +55,7 @@ def test_collect_driver_statistics_runs_unseeded_noise_and_delta_trials(
         candidates=["A", "B", "C"],
     )
     graph = SimpleNamespace(
-        LAM=7.0,
+        MoI=7.0,
         ballot_matrix=np.array([[0, 1, 2]], dtype=np.int8),
         _unseeded_root_wt_vec=np.array([100.0]),
         used_seeded_build=False,
@@ -112,7 +112,7 @@ def test_collect_driver_statistics_runs_unseeded_noise_and_delta_trials(
         verbose=True,
     )
 
-    assert "Optimal LAM found: M = 7." in capsys.readouterr().out
+    assert "Optimal MoI found: M = 7." in capsys.readouterr().out
     assert returned_graph is graph
     assert loader_paths[0].name == "election.csv"
     assert search_kwargs == [
@@ -143,13 +143,13 @@ def test_collect_driver_statistics_runs_unseeded_noise_and_delta_trials(
     assert statistics.delta_search.fraction == pytest.approx(0.2)
     assert statistics.delta_search.sample_size == 20
     assert statistics.total_ballot_wt == 100
-    assert statistics.optimal_lam == pytest.approx(7.0)
+    assert statistics.optimal_moi == pytest.approx(7.0)
     assert statistics.candidate_count == 3
     assert statistics.seats == 2
 
 
 @pytest.mark.parametrize("batch_elim", [False, True])
-def test_collect_driver_statistics_can_use_an_enforced_lam(
+def test_collect_driver_statistics_can_use_an_enforced_moi(
     monkeypatch,
     batch_elim,
 ):
@@ -164,7 +164,7 @@ def test_collect_driver_statistics_can_use_an_enforced_lam(
         def __init__(self, supplied_profile, **kwargs):
             assert supplied_profile is profile
             construction_calls.append(("init", kwargs))
-            self.LAM = kwargs["LAM"]
+            self.MoI = kwargs["MoI"]
             self.simultaneous = kwargs["simultaneous"]
             self.used_seeded_build = False
 
@@ -226,7 +226,7 @@ def test_collect_driver_statistics_can_use_an_enforced_lam(
 
     graph, statistics = experiment.collect_driver_statistics(
         "election.csv",
-        enforced_LAM=17,
+        enforced_MoI=17,
         batch_elim=batch_elim,
         verbose=False,
     )
@@ -234,13 +234,13 @@ def test_collect_driver_statistics_can_use_an_enforced_lam(
     assert graph.used_seeded_build is batch_elim
     assert graph.simultaneous is True
     assert noise_calls[0][1]["simultaneous"] is True
-    assert statistics.optimal_lam == 17.0
+    assert statistics.optimal_moi == 17.0
     assert construction_calls == [
         (
             "init",
             {
                 "m": 2,
-                "LAM": 17.0,
+                "MoI": 17.0,
                 "memory_lite": True,
                 "simultaneous": True,
             },
@@ -252,8 +252,8 @@ def test_collect_driver_statistics_can_use_an_enforced_lam(
     ]
 
 
-def test_batch_elim_requires_an_enforced_lam():
-    with pytest.raises(ValueError, match="requires an enforced_LAM"):
+def test_batch_elim_requires_an_enforced_moi():
+    with pytest.raises(ValueError, match="requires an enforced_MoI"):
         experiment.collect_driver_statistics(
             "election.csv",
             batch_elim=True,
@@ -267,7 +267,7 @@ def test_skip_mismatch_runs_only_delta_trials(monkeypatch, capsys):
         candidates=["A", "B", "C"],
     )
     graph = SimpleNamespace(
-        LAM=7.0,
+        MoI=7.0,
         used_seeded_build=False,
     )
     delta_search = experiment.DeltaFractionSearch(
@@ -347,7 +347,7 @@ def test_end_to_end_statistics_tester_prints_summary_and_returns_graph(
     collect_calls = []
     statistics = experiment.DriverStatistics(
         total_ballot_wt=1_000,
-        optimal_lam=42.0,
+        optimal_moi=42.0,
         candidate_count=8,
         seats=3,
         noise_sample_sizes=(10,) * 10,
@@ -379,7 +379,7 @@ def test_end_to_end_statistics_tester_prints_summary_and_returns_graph(
     assert "Minimal Delta sample size (9/10 successes) = 50" in output
 
 
-def test_main_forwards_enforced_lam_and_batch_elim(monkeypatch):
+def test_main_forwards_enforced_moi_and_batch_elim(monkeypatch):
     calls = []
     monkeypatch.setattr(
         experiment,
@@ -390,7 +390,7 @@ def test_main_forwards_enforced_lam_and_batch_elim(monkeypatch):
     result = experiment.main(
         [
             "election.csv",
-            "--enforced-lam",
+            "--enforced-moi",
             "23",
             "--batch-elim",
             "--skip-mismatch",
@@ -401,7 +401,7 @@ def test_main_forwards_enforced_lam_and_batch_elim(monkeypatch):
 
     assert result == 0
     assert calls[0][0][0].name == "election.csv"
-    assert calls[0][1]["enforced_LAM"] == 23
+    assert calls[0][1]["enforced_MoI"] == 23
     assert calls[0][1]["batch_elim"] is True
     assert calls[0][1]["skip_mismatch"] is True
     assert calls[0][1]["delta_sample_sizes"] == (0.2, 0.08, 0.01)

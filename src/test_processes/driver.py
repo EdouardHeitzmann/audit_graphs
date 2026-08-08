@@ -336,7 +336,7 @@ class GlobalAuditDriver:
             else escape_margin
         )
         common: dict[str, Any] = {
-            "LAM": float(audit_graph.LAM),
+            "MoI": float(audit_graph.MoI),
             "critical_margin": noise_budget,
             "radius": 2.0 * noise_budget,
             "alpha": self.alpha,
@@ -384,7 +384,7 @@ class GlobalAuditDriver:
         graph = self.audit_graph
 
         if action == EdgeAction.ELIMINATE:
-            forced = np.where(tallies >= graph.quota + graph.LAM)[0]
+            forced = np.where(tallies >= graph.quota + graph.MoI)[0]
             if len(forced) > 0:
                 winner = int(forced[np.argmax(tallies[forced])])
                 return {
@@ -409,7 +409,7 @@ class GlobalAuditDriver:
 
         c_tally = float(tallies[candidate])
         if not simultaneous:
-            challengers = np.where(tallies > c_tally + graph.LAM)[0]
+            challengers = np.where(tallies > c_tally + graph.MoI)[0]
             challengers = np.asarray(
                 [idx for idx in challengers if idx != candidate],
                 dtype=int,
@@ -423,7 +423,7 @@ class GlobalAuditDriver:
                     "margin": float(tallies[winner] - c_tally),
                 }
 
-        if c_tally + graph.LAM < graph.quota:
+        if c_tally + graph.MoI < graph.quota:
             return {
                 "type": CriticalMarginType.CANDIDATE_BELOW_QUOTA,
                 "candidate": int(candidate),
@@ -433,7 +433,7 @@ class GlobalAuditDriver:
         raise ValueError(
             "Could not identify a noise-filter margin for election escape edge: "
             f"candidate={candidate}, tally={c_tally}, quota={graph.quota}, "
-            f"LAM={graph.LAM}, simultaneous={simultaneous}."
+            f"MoI={graph.MoI}, simultaneous={simultaneous}."
         )
 
     def add_compiler(
@@ -519,7 +519,7 @@ class GlobalAuditDriver:
                     maximum_possible_tallies=maximum_possible_tallies,
                     lowest_strong_candidate=int(lowest_strong_candidate),
                     lowest_strong_tally=lowest_strong_tally,
-                    LAM=float(audit_graph.LAM),
+                    MoI=float(audit_graph.MoI),
                     critical_margin=critical_margin,
                     radius=2.0 * critical_margin,
                     alpha=self.alpha,
@@ -688,7 +688,7 @@ class GlobalAuditDriver:
                 compiler.base_vertex.ref,
                 compiler.c,
                 compiler.l,
-                round(float(compiler.LAM), 12),
+                round(float(compiler.MoI), 12),
                 round(float(compiler.critical_margin), 12),
             )
         if isinstance(compiler, CobraQuotaNoiseFilterCompiler):
@@ -697,7 +697,7 @@ class GlobalAuditDriver:
                 compiler.base_vertex.ref,
                 compiler.candidate,
                 compiler.margin_type,
-                round(float(compiler.LAM), 12),
+                round(float(compiler.MoI), 12),
                 round(float(compiler.critical_margin), 12),
             )
         if isinstance(compiler, CobraMentionsNoiseFilterCompiler):
@@ -706,7 +706,7 @@ class GlobalAuditDriver:
                 compiler.base_vertex.ref,
                 compiler.weak_candidate,
                 compiler.strong_candidate,
-                round(float(compiler.LAM), 12),
+                round(float(compiler.MoI), 12),
                 round(float(compiler.critical_margin), 12),
             )
         if not isinstance(compiler, CobraCompiler):
@@ -989,7 +989,7 @@ class GlobalAuditDriverV2:
 
         self.audit_graph = audit_graph
         self.noise_level = float(noise_level)
-        self.r = float(2.0 * audit_graph.LAM if r is None else r)
+        self.r = float(2.0 * audit_graph.MoI if r is None else r)
         self.print_diagnostics_every = int(print_diagnostics_every)
         self.alpha = float(alpha)
         self.threshold = 1.0 / self.alpha
@@ -1025,7 +1025,7 @@ class GlobalAuditDriverV2:
         self._log("Initializing GlobalAuditDriverV2.")
         self._log(
             f"  graph: candidates={audit_graph.n_candidates}, seats={self.m}, "
-            f"LAM={audit_graph.LAM}, seeded={self.seeded_graph}"
+            f"MoI={audit_graph.MoI}, seeded={self.seeded_graph}"
         )
         self.sample_size = self._initialize_sample_source(
             audit_graph=audit_graph,
@@ -1203,7 +1203,7 @@ class GlobalAuditDriverV2:
         tallies = np.asarray(vertex.tallies, dtype=np.float64)
         hopefuls = np.asarray(sorted(vertex.key.hopefuls), dtype=int)
         forced = hopefuls[
-            tallies[hopefuls] >= self.audit_graph.quota + self.audit_graph.LAM
+            tallies[hopefuls] >= self.audit_graph.quota + self.audit_graph.MoI
         ]
         if len(forced) == 0:
             return None
@@ -1217,14 +1217,14 @@ class GlobalAuditDriverV2:
         tallies = np.asarray(vertex.tallies, dtype=np.float64)
         c_tally = float(tallies[candidate])
         if not self.simultaneous:
-            challengers = np.where(tallies > c_tally + self.audit_graph.LAM)[0]
+            challengers = np.where(tallies > c_tally + self.audit_graph.MoI)[0]
             challengers = np.asarray(
                 [idx for idx in challengers if idx != candidate],
                 dtype=int,
             )
             if len(challengers) > 0:
                 return False
-        return bool(c_tally + self.audit_graph.LAM < self.audit_graph.quota)
+        return bool(c_tally + self.audit_graph.MoI < self.audit_graph.quota)
 
     def _interpreter_for_vertex(
         self,
@@ -1632,7 +1632,7 @@ class GlobalAuditDriverV2:
     ) -> dict[str, Any] | None:
         tallies = np.asarray(vertex.tallies, dtype=np.float64)
         if action == EdgeAction.ELIMINATE:
-            forced = np.where(tallies >= self.audit_graph.quota + self.audit_graph.LAM)[0]
+            forced = np.where(tallies >= self.audit_graph.quota + self.audit_graph.MoI)[0]
             if len(forced) > 0:
                 winner = int(forced[np.argmax(tallies[forced])])
                 margin = float(tallies[winner] - self.audit_graph.quota)
@@ -1655,7 +1655,7 @@ class GlobalAuditDriverV2:
 
         c_tally = float(tallies[candidate])
         if not self.simultaneous:
-            challengers = np.where(tallies > c_tally + self.audit_graph.LAM)[0]
+            challengers = np.where(tallies > c_tally + self.audit_graph.MoI)[0]
             challengers = np.asarray(
                 [idx for idx in challengers if idx != candidate],
                 dtype=int,
@@ -1669,7 +1669,7 @@ class GlobalAuditDriverV2:
                     "margin": float(tallies[winner] - c_tally),
                 }
 
-        if c_tally + self.audit_graph.LAM < self.audit_graph.quota:
+        if c_tally + self.audit_graph.MoI < self.audit_graph.quota:
             return {
                 "type": CriticalMarginType.CANDIDATE_BELOW_QUOTA,
                 "candidate": int(candidate),

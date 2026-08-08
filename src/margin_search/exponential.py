@@ -17,29 +17,29 @@ def exponential_search(
     profile: Any,
     *,
     m: int,
-    starting_lam: float = 10.0,
+    starting_moi: float = 10.0,
     memory_lite: bool = True,
     constructor_cls: Type[AbstractGraphConstructor] = MeekGraphConstructor,
     **constructor_kwargs: Any,
 ) -> AbstractGraphConstructor:
     """
-    Naive exponential LAM search.
+    Naive exponential MoI search.
 
-    Rebuilds the graph from scratch at each doubled LAM until coherence fails.
+    Rebuilds the graph from scratch at each doubled MoI until coherence fails.
     Then restricts the first incoherent graph to the smallest tightest_margin
     among terminal vertices whose winner set differs from the inferred recorded
     winner set, checks coherence again, and returns that restricted constructor.
     """
-    if starting_lam < 0:
-        raise ValueError("starting_lam must be non-negative.")
+    if starting_moi < 0:
+        raise ValueError("starting_moi must be non-negative.")
 
-    lam = float(starting_lam)
+    moi = float(starting_moi)
 
     while True:
         constructor = constructor_cls(
             profile,
             m=m,
-            LAM=lam,
+            MoI=moi,
             memory_lite=memory_lite,
             **constructor_kwargs,
         )
@@ -50,18 +50,18 @@ def exponential_search(
         if not constructor.coherence_check():
             break
 
-        if lam == 0:
-            lam = 1.0
+        if moi == 0:
+            moi = 1.0
         else:
-            lam *= 2.0
+            moi *= 2.0
 
     recorded_winner_set = _infer_recorded_winner_set(constructor)
-    restriction_lam = _smallest_incoherent_terminal_margin(
+    restriction_moi = _smallest_incoherent_terminal_margin(
         constructor,
         recorded_winner_set,
     )
 
-    constructor.restrict_margin(restriction_lam)
+    constructor.restrict_margin(restriction_moi)
     constructor.coherence_check()
 
     return constructor
@@ -74,25 +74,25 @@ def heap_based_search(
     memory_lite: bool = True,
     constructor_cls: Type[AbstractGraphConstructor] = MeekGraphConstructor,
     verify_output: bool = False,
-    allow_lam_at_or_above_half_quota: bool = False,
+    allow_moi_at_or_above_half_quota: bool = False,
     **constructor_kwargs: Any,
 ) -> AbstractGraphConstructor:
     """
     Naive next-margin expansion search.
 
-    Starts at LAM 1, repeatedly expands to the smallest stored next_margin in
+    Starts at MoI 1, repeatedly expands to the smallest stored next_margin in
     the current graph, and stops when coherence fails. It then rebuilds the
     returned graph from scratch at floor(smallest incoherent terminal margin),
-    avoiding stale edge semantics from earlier LAM values. By default, the
-    search stops at the largest integer LAM strictly below half the election
-    quota; set ``allow_lam_at_or_above_half_quota`` to retain the unrestricted
+    avoiding stale edge semantics from earlier MoI values. By default, the
+    search stops at the largest integer MoI strictly below half the election
+    quota; set ``allow_moi_at_or_above_half_quota`` to retain the unrestricted
     search behavior. When ``verify_output`` is true, a second fresh graph is
     built and compared after normalizing allocation-order-dependent references.
     """
     constructor = constructor_cls(
         profile,
         m=m,
-        LAM=1.0,
+        MoI=1.0,
         memory_lite=memory_lite,
         **constructor_kwargs,
     )
@@ -101,25 +101,25 @@ def heap_based_search(
     constructor.assign_tightest_margins()
 
     half_quota = None
-    maximum_lam = None
-    if not allow_lam_at_or_above_half_quota:
+    maximum_moi = None
+    if not allow_moi_at_or_above_half_quota:
         quota = _search_quota(constructor)
         half_quota = quota / 2.0
-        maximum_lam = float(math.ceil(half_quota) - 1)
-        if maximum_lam < 0:
+        maximum_moi = float(math.ceil(half_quota) - 1)
+        if maximum_moi < 0:
             raise ValueError(
-                "heap_based_search requires a non-negative integer LAM "
+                "heap_based_search requires a non-negative integer MoI "
                 f"strictly below q/2, but q={quota}."
             )
 
-        # The historical initial LAM is 1. Small synthetic elections can have
+        # The historical initial MoI is 1. Small synthetic elections can have
         # q/2 <= 1, in which case immediately rebuild at the only admissible
         # integer margin rather than searching from an invalid starting point.
-        if float(constructor.LAM) >= half_quota:
-            constructor = _fresh_graph_at_lam(
+        if float(constructor.MoI) >= half_quota:
+            constructor = _fresh_graph_at_moi(
                 profile=profile,
                 m=m,
-                lam=maximum_lam,
+                moi=maximum_moi,
                 memory_lite=memory_lite,
                 constructor_cls=constructor_cls,
                 constructor_kwargs=constructor_kwargs,
@@ -137,29 +137,29 @@ def heap_based_search(
 
     stopped_at_half_quota = False
     while constructor.coherence_check():
-        next_lam = _smallest_next_margin(constructor)
-        if half_quota is not None and next_lam >= half_quota:
+        next_moi = _smallest_next_margin(constructor)
+        if half_quota is not None and next_moi >= half_quota:
             stopped_at_half_quota = True
             break
-        constructor.expand_margin(next_lam)
+        constructor.expand_margin(next_moi)
         constructor.add_natural_edges()
         constructor.assign_tightest_margins()
 
     if stopped_at_half_quota:
-        assert maximum_lam is not None
-        restriction_lam = maximum_lam
+        assert maximum_moi is not None
+        restriction_moi = maximum_moi
     else:
         recorded_winner_set = _infer_recorded_winner_set(constructor)
-        incoherent_lam = _smallest_incoherent_terminal_margin(
+        incoherent_moi = _smallest_incoherent_terminal_margin(
             constructor,
             recorded_winner_set,
         )
-        restriction_lam = math.floor(incoherent_lam)
+        restriction_moi = math.floor(incoherent_moi)
 
-    constructor = _fresh_graph_at_lam(
+    constructor = _fresh_graph_at_moi(
         profile=profile,
         m=m,
-        lam=restriction_lam,
+        moi=restriction_moi,
         memory_lite=memory_lite,
         constructor_cls=constructor_cls,
         constructor_kwargs=constructor_kwargs,
@@ -179,7 +179,7 @@ def heap_based_search(
 
 
 def _search_quota(constructor: AbstractGraphConstructor) -> float:
-    """Return the fixed/root quota used to bound heap-search LAM values."""
+    """Return the fixed/root quota used to bound heap-search MoI values."""
     quota = getattr(constructor, "quota", None)
     if quota is None:
         root_ref = getattr(constructor, "root_ref", None)
@@ -190,7 +190,7 @@ def _search_quota(constructor: AbstractGraphConstructor) -> float:
         raise ValueError(
             "heap_based_search cannot enforce M < q/2 because the graph "
             "constructor exposes neither a quota nor a root-vertex quota. "
-            "Set allow_lam_at_or_above_half_quota=True to override this check."
+            "Set allow_moi_at_or_above_half_quota=True to override this check."
         )
 
     quota = float(quota)
@@ -211,11 +211,11 @@ def _verify_heap_output_against_fresh_build(
     constructor_cls: Type[AbstractGraphConstructor],
     constructor_kwargs: dict[str, Any],
 ) -> None:
-    """Rebuild at the final LAM and compare normalized graph contents."""
-    fresh_graph = _fresh_graph_at_lam(
+    """Rebuild at the final MoI and compare normalized graph contents."""
+    fresh_graph = _fresh_graph_at_moi(
         profile=profile,
         m=m,
-        lam=float(heap_graph.LAM),
+        moi=float(heap_graph.MoI),
         memory_lite=memory_lite,
         constructor_cls=constructor_cls,
         constructor_kwargs=constructor_kwargs,
@@ -223,11 +223,11 @@ def _verify_heap_output_against_fresh_build(
     _assert_graphs_identical(heap_graph, fresh_graph)
 
 
-def _fresh_graph_at_lam(
+def _fresh_graph_at_moi(
     *,
     profile: Any,
     m: int,
-    lam: float,
+    moi: float,
     memory_lite: bool,
     constructor_cls: Type[AbstractGraphConstructor],
     constructor_kwargs: dict[str, Any],
@@ -235,7 +235,7 @@ def _fresh_graph_at_lam(
     graph = constructor_cls(
         profile,
         m=m,
-        LAM=float(lam),
+        MoI=float(moi),
         memory_lite=memory_lite,
         **constructor_kwargs,
     )
@@ -261,7 +261,7 @@ def _assert_graphs_identical(
                 f"{attribute}: {getattr(heap_graph, attribute, None)!r} != "
                 f"{getattr(fresh_graph, attribute, None)!r}."
             )
-    _assert_close("LAM", heap_graph.LAM, fresh_graph.LAM)
+    _assert_close("MoI", heap_graph.MoI, fresh_graph.MoI)
     _assert_close(
         "quota",
         getattr(heap_graph, "quota", None),
@@ -461,29 +461,29 @@ def hybrid_search(
     profile: Any,
     *,
     m: int,
-    starting_lam: float = 1.0,
+    starting_moi: float = 1.0,
     memory_lite: bool = True,
     constructor_cls: Type[AbstractGraphConstructor] = MeekGraphConstructor,
     **constructor_kwargs: Any,
 ) -> AbstractGraphConstructor:
     """
-    Expansion-based hybrid LAM search.
+    Expansion-based hybrid MoI search.
 
-    Starts with trip_when_incoherent enabled, doubles LAM in place with
+    Starts with trip_when_incoherent enabled, doubles MoI in place with
     expand_margin until construction discovers the first incoherent terminal
-    leaf, then restricts back to the last coherent LAM and finishes with the
+    leaf, then restricts back to the last coherent MoI and finishes with the
     naive next-margin heap-style refinement.
     """
-    if starting_lam < 0:
-        raise ValueError("starting_lam must be non-negative.")
+    if starting_moi < 0:
+        raise ValueError("starting_moi must be non-negative.")
 
     constructor_kwargs.pop("trip_when_incoherent", None)
-    last_coherent_lam: float | None = None
+    last_coherent_moi: float | None = None
 
     constructor = constructor_cls(
         profile,
         m=m,
-        LAM=float(starting_lam),
+        MoI=float(starting_moi),
         memory_lite=memory_lite,
         trip_when_incoherent=True,
         **constructor_kwargs,
@@ -493,21 +493,21 @@ def hybrid_search(
         constructor.build()
 
         while True:
-            next_lam = 1.0 if constructor.LAM == 0 else 2.0 * constructor.LAM
-            last_coherent_lam = float(constructor.LAM)
-            constructor.expand_margin(next_lam)
+            next_moi = 1.0 if constructor.MoI == 0 else 2.0 * constructor.MoI
+            last_coherent_moi = float(constructor.MoI)
+            constructor.expand_margin(next_moi)
     except IncoherentLeafError:
         constructor.trip_when_incoherent = False
         constructor._pending_incoherent_leaf_error = None
         constructor._terminal_winner_set_tripwire = None
 
-        if last_coherent_lam is not None:
-            constructor.restrict_margin(last_coherent_lam)
+        if last_coherent_moi is not None:
+            constructor.restrict_margin(last_coherent_moi)
         else:
             constructor = constructor_cls(
                 profile,
                 m=m,
-                LAM=0.0,
+                MoI=0.0,
                 memory_lite=memory_lite,
                 trip_when_incoherent=False,
                 **constructor_kwargs,
@@ -525,19 +525,19 @@ def _heap_refinement_from_constructor(
     constructor.assign_tightest_margins()
 
     while constructor.coherence_check():
-        next_lam = _smallest_next_margin(constructor)
-        constructor.expand_margin(next_lam)
+        next_moi = _smallest_next_margin(constructor)
+        constructor.expand_margin(next_moi)
         constructor.add_natural_edges()
         constructor.assign_tightest_margins()
 
     recorded_winner_set = _infer_recorded_winner_set(constructor)
-    incoherent_lam = _smallest_incoherent_terminal_margin(
+    incoherent_moi = _smallest_incoherent_terminal_margin(
         constructor,
         recorded_winner_set,
     )
-    restriction_lam = math.floor(incoherent_lam)
+    restriction_moi = math.floor(incoherent_moi)
 
-    constructor.restrict_margin(restriction_lam)
+    constructor.restrict_margin(restriction_moi)
     constructor.coherence_check()
 
     return constructor
@@ -551,7 +551,7 @@ def _smallest_next_margin(
         for layer in constructor.layers
         for vertex in layer
         if vertex.next_margin is not None
-        and vertex.next_margin > constructor.LAM
+        and vertex.next_margin > constructor.MoI
     ]
 
     if not margins:

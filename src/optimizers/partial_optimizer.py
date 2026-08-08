@@ -341,9 +341,9 @@ def project_nonnegative_l1_ball(
 
     displacement = y_flat - center_flat
 
-    def point(lam: float) -> np.ndarray:
+    def point(threshold: float) -> np.ndarray:
         delta = np.sign(displacement) * np.maximum(
-            np.abs(displacement) - lam,
+            np.abs(displacement) - threshold,
             0.0,
         )
         # Enforce x = center + delta >= 0.
