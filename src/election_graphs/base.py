@@ -79,6 +79,10 @@ class AbstractGraphConstructor(ABC):
     reconstruction, and path-margin propagation.
     """
 
+    # Plain constructions are never seeded; seeded subclasses flip this
+    # instance-side so duck-typed consumers (drivers, plotting) can rely on it.
+    used_seeded_build = False
+
     def __init__(
         self,
         profile: Any,

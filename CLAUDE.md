@@ -28,7 +28,7 @@ They are formally defined in Sections 2.1 and 2.2 of the writeup.
 For large elections, full DFS construction is computationally intractable.
 Batch elimination is a solution to this problem which rigorously justifies the simultaneous elimination of many "weak candidates."
 The mechanics of this are descibed in Section 2.3 of the writeup.
-Their code is currently contained in the `seeded_build` method of the `WIGMGraphConstructor` in the previously mentioned script.
+Their code is contained in the `seeded_build` method of `SeededWIGMGraphConstructor` in `src/wigm_graphs/seeded.py`, a subclass of the plain DFS constructor.
 
 ### Black-Boxed Seating.
 

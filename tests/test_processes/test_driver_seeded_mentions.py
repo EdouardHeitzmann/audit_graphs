@@ -13,6 +13,7 @@ from src.test_processes.cobra import (
 )
 from src.test_processes.driver import GlobalAuditDriver, GlobalAuditDriverV2
 from src.wigm_graphs.graph_wigm import WIGMGraphConstructor
+from src.wigm_graphs.seeded import SeededWIGMGraphConstructor
 
 
 def test_seeded_mentions_use_post_very_strong_wt_vec_not_unseeded_root():
@@ -57,7 +58,7 @@ def test_driver_initializes_from_seeded_graph_with_very_strong_preseed_path():
         wt_vec = np.array([1200, 900, 300, 100], dtype=np.float64)
         total_ballot_wt = float(wt_vec.sum())
 
-    graph = WIGMGraphConstructor(
+    graph = SeededWIGMGraphConstructor(
         Profile(),
         m=3,
         LAM=50,
@@ -144,7 +145,7 @@ def test_v2_driver_initializes_batch_seeded_mentions_compilers():
         wt_vec = np.array([1200, 900, 300, 100], dtype=np.float64)
         total_ballot_wt = float(wt_vec.sum())
 
-    graph = WIGMGraphConstructor(
+    graph = SeededWIGMGraphConstructor(
         Profile(),
         m=3,
         LAM=50,

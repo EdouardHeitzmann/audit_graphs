@@ -203,6 +203,11 @@ def test_collect_driver_statistics_can_use_an_enforced_lam(
     )
     monkeypatch.setattr(
         experiment,
+        "SeededWIGMGraphConstructor",
+        FakeWIGMGraphConstructor,
+    )
+    monkeypatch.setattr(
+        experiment,
         "run_noise_trials",
         lambda *args, **kwargs: (
             noise_calls.append((args, kwargs))

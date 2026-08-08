@@ -29,7 +29,7 @@ from .datatypes import (
     WIGMRuntimeCache,
     WIGMWeightScenarios,
 )
-from .graph_wigm import WIGMGraphConstructor
+from .seeded import SeededWIGMGraphConstructor
 
 
 @dataclass(slots=True)
@@ -38,7 +38,7 @@ class BlackBoxExpansionContext:
     uncertain_mask: NDArray[np.bool_]
 
 
-class BlackBoxWIGMGraphConstructor(WIGMGraphConstructor):
+class BlackBoxWIGMGraphConstructor(SeededWIGMGraphConstructor):
     """
     WIGM constructor seeded after one election with an uncertain transfer.
 

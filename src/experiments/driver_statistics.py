@@ -17,6 +17,7 @@ from ..margin_search import heap_based_search
 from ..test_processes.delta_method import DeltaMethodAuditDriver
 from ..test_processes.driver import GlobalAuditDriver
 from ..wigm_graphs.graph_wigm import WIGMGraphConstructor
+from ..wigm_graphs.seeded import SeededWIGMGraphConstructor
 
 
 DEFAULT_DELTA_FRACTIONS: tuple[float, ...] = (
@@ -378,7 +379,10 @@ def collect_driver_statistics(
                 verify_output=bool(verify_output),
             )
         else:
-            graph = WIGMGraphConstructor(
+            constructor_cls = (
+                SeededWIGMGraphConstructor if batch_elim else WIGMGraphConstructor
+            )
+            graph = constructor_cls(
                 pf,
                 m=m,
                 LAM=float(enforced_LAM),

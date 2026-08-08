@@ -14,6 +14,7 @@ import matplotlib.pyplot as plt
 from src.election_graphs.datatypes import EdgeAction, VertexRef
 from src.plotting import plot_wigm_graph
 from src.wigm_graphs.graph_wigm import WIGMGraphConstructor
+from src.wigm_graphs.seeded import SeededWIGMGraphConstructor
 
 
 @dataclass
@@ -248,7 +249,7 @@ def test_seeded_very_strong_simultaneous_walk_waits_until_candidate_is_forced():
         ),
         wt_vec=np.array([1200, 900, 800, 700, 397], dtype=np.float64),
     )
-    constructor = WIGMGraphConstructor(
+    constructor = SeededWIGMGraphConstructor(
         profile,
         m=3,
         LAM=50,
@@ -288,7 +289,7 @@ def test_seeded_plot_auto_detects_build_and_keeps_simultaneous_labels_apart(
         ),
         wt_vec=np.array([1200, 900, 300, 100], dtype=np.float64),
     )
-    constructor = WIGMGraphConstructor(
+    constructor = SeededWIGMGraphConstructor(
         profile,
         m=3,
         LAM=50,
@@ -359,7 +360,7 @@ def test_seeded_build_reports_phase_and_memory_diagnostics(capsys):
         ),
         wt_vec=np.array([10.0, 1.0]),
     )
-    constructor = WIGMGraphConstructor(
+    constructor = SeededWIGMGraphConstructor(
         profile,
         m=1,
         LAM=0,
@@ -389,7 +390,7 @@ def test_seeded_build_diagnostics_can_be_disabled(capsys):
         ballot_matrix=np.array([[0, 1], [1, 0]], dtype=np.int8),
         wt_vec=np.array([10.0, 1.0]),
     )
-    constructor = WIGMGraphConstructor(profile, m=1, LAM=0)
+    constructor = SeededWIGMGraphConstructor(profile, m=1, LAM=0)
 
     constructor.seeded_build(
         very_strong_candidates=(),
@@ -416,7 +417,7 @@ def test_seeded_very_strong_candidates_not_forced_are_not_preseated():
         ),
         wt_vec=np.array([1200, 900, 800, 1097], dtype=np.float64),
     )
-    constructor = WIGMGraphConstructor(
+    constructor = SeededWIGMGraphConstructor(
         profile,
         m=3,
         LAM=150,
@@ -456,7 +457,7 @@ def test_seeded_very_strong_non_simultaneous_picks_highest_forced_first():
         ),
         wt_vec=np.array([1200, 1190, 500, 1107], dtype=np.float64),
     )
-    constructor = WIGMGraphConstructor(
+    constructor = SeededWIGMGraphConstructor(
         profile,
         m=3,
         LAM=50,
@@ -499,7 +500,7 @@ def test_seeded_very_strong_preseed_vertices_store_tallies_for_audit_driver():
         ),
         wt_vec=np.array([1200, 900, 300, 100], dtype=np.float64),
     )
-    constructor = WIGMGraphConstructor(
+    constructor = SeededWIGMGraphConstructor(
         profile,
         m=3,
         LAM=50,

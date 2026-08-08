@@ -20,6 +20,7 @@ from src.test_processes import (
     symbolic_derivative_cache_info,
 )
 from src.wigm_graphs.graph_wigm import WIGMGraphConstructor
+from src.wigm_graphs.seeded import SeededWIGMGraphConstructor
 
 
 @dataclass
@@ -100,7 +101,7 @@ def seeded_batch_case():
         ),
         wt_vec=np.array([900, 300, 250, 100, 500], dtype=np.float64),
     )
-    graph = WIGMGraphConstructor(
+    graph = SeededWIGMGraphConstructor(
         profile,
         m=3,
         LAM=50,
@@ -143,7 +144,7 @@ def seeded_multiweak_batch_case():
             [900, 300, 250, 100, 80, 70, 500], dtype=np.float64
         ),
     )
-    graph = WIGMGraphConstructor(
+    graph = SeededWIGMGraphConstructor(
         profile,
         m=3,
         LAM=50,

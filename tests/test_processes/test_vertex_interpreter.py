@@ -23,6 +23,7 @@ from src.test_processes import (
     plot_profiled_compiler,
 )
 from src.wigm_graphs.graph_wigm import WIGMGraphConstructor
+from src.wigm_graphs.seeded import SeededWIGMGraphConstructor
 
 
 @dataclass
@@ -278,7 +279,7 @@ def test_seeded_basepoint_uses_unseeded_weights_for_transfer_recursion():
         wt_vec = np.array([1200, 900, 300, 100], dtype=np.float64)
         total_ballot_wt = float(wt_vec.sum())
 
-    graph = WIGMGraphConstructor(
+    graph = SeededWIGMGraphConstructor(
         Profile(),
         m=3,
         LAM=50,
