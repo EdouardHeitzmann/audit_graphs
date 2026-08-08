@@ -101,15 +101,8 @@ class BlackBoxWIGMGraphConstructor(SeededWIGMGraphConstructor):
         uncertain_winner: int | str,
         very_strong_candidates: Iterable[int | str] | None = None,
         show_progress: bool = False,
-        shwo_progress: bool | None = None,
         allow_seed_merges: bool = False,
     ):
-        if shwo_progress is not None:
-            if show_progress and bool(shwo_progress) != show_progress:
-                raise ValueError(
-                    "show_progress and shwo_progress specify conflicting values."
-                )
-            show_progress = bool(shwo_progress)
         allow_seed_merges = bool(allow_seed_merges)
 
         very_strong = self._candidate_indices(very_strong_candidates or ())

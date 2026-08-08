@@ -8,6 +8,10 @@ import numpy as np
 from numpy.typing import NDArray
 
 
+# Ballot-matrix entry marking an exhausted / blank ranking position.
+SENTINEL = -127
+
+
 # ------------------------------ VERTICES ------------------------------
 
 @dataclass(frozen=True, slots=True)

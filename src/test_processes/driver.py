@@ -1912,17 +1912,6 @@ class GlobalAuditDriverV2:
         self.profile_axes = axes
         return profiled
 
-    def profile_slowest_compilers(
-        self,
-        *,
-        ballot_matrix: NDArray[np.integer] | None = None,
-        limit: int = 3,
-    ):
-        return self.plot_profile(
-            num_compilers=limit,
-            ballot_matrix=ballot_matrix,
-        )
-
     def _rebuild_profiled_compiler(self, idx: int) -> CobraCompilerV2Base:
         spec = self.compiler_specs[idx]
         interpreter = self._interpreter_for_vertex(

@@ -9,20 +9,19 @@ from numpy.typing import NDArray
 
 try:
     from ..election_graphs.datatypes import (
+        SENTINEL,
         EdgeAction,
         ElectionState,
     )
 except ImportError:
     from election_graphs.datatypes import (
+        SENTINEL,
         EdgeAction,
         ElectionState,
     )
     from test_processes.interpreter import ThetaKey, VertexInterpreter
 else:
     from .interpreter import ThetaKey, VertexInterpreter
-
-
-SENTINEL = np.int16(-127)
 DEFAULT_LAMBDA_VALUE = 1.9
 MIN_NUMERICAL_LAMBDA_VALUE = 0.1
 

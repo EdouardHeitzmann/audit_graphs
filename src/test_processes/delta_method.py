@@ -11,7 +11,7 @@ from numpy.typing import NDArray
 from scipy.stats import norm
 
 from .cobra import CriticalMarginType
-from ..election_graphs.datatypes import EdgeAction, ElectionStatus
+from ..election_graphs.datatypes import SENTINEL, EdgeAction, ElectionStatus
 from ..election_graphs.utils import (
     fpv_tallies_from_matrix,
     maximum_possible_tallies_from_matrix,
@@ -208,7 +208,7 @@ class DeltaSampleProjection:
         eligible = np.isin(rows, tuple(key))
         has_fpv = np.any(eligible, axis=1)
         positions = np.argmax(eligible, axis=1)
-        fpv = np.full(len(rows), -127, dtype=np.int64)
+        fpv = np.full(len(rows), SENTINEL, dtype=np.int64)
         fpv[has_fpv] = rows[np.arange(len(rows)), positions][has_fpv]
         if cache is not None:
             cache[key] = fpv
@@ -668,8 +668,6 @@ class DeltaMethodCompiler:
         self.last_result = result
         return result
 
-    compile = evaluate
-
     def certify(
         self,
         cvr_sample: NDArray[np.integer],
@@ -780,7 +778,7 @@ class DeltaMethodCompiler:
         )
         has_prebatch_fpv = np.any(prebatch_eligible, axis=1)
         prebatch_positions = np.argmax(prebatch_eligible, axis=1)
-        prebatch_fpv = np.full(len(ballots), -127, dtype=np.int64)
+        prebatch_fpv = np.full(len(ballots), SENTINEL, dtype=np.int64)
         prebatch_fpv[has_prebatch_fpv] = ballots[
             np.arange(len(ballots)), prebatch_positions
         ][has_prebatch_fpv]

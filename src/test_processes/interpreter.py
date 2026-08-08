@@ -8,6 +8,7 @@ from numpy.typing import NDArray
 
 try:
     from ..election_graphs.datatypes import (
+        SENTINEL,
         EdgeRef,
         ElectionEdge,
         ElectionState,
@@ -15,6 +16,7 @@ try:
     )
 except ImportError:
     from election_graphs.datatypes import (
+        SENTINEL,
         EdgeRef,
         ElectionEdge,
         ElectionState,
@@ -302,17 +304,6 @@ class VertexInterpreter:
         cvr_coord = self.coordinate(cvr_row, c, l)
         return self.theta_key_from_coordinates(ballot_coord, cvr_coord)
 
-    def theta_from_coordinates(
-        self,
-        ballot_coord: VertexCoordinate,
-        cvr_coord: VertexCoordinate,
-    ) -> NDArray[np.float64]:
-        """Return ``e_ballot - e_cvr`` for two precomputed local coordinates."""
-        direction = np.zeros(self.shape, dtype=np.float64)
-        direction[ballot_coord.winner_prefix, ballot_coord.column] += 1.0
-        direction[cvr_coord.winner_prefix, cvr_coord.column] -= 1.0
-        return direction
-
     def theta_key_from_coordinates(
         self,
         ballot_coord: VertexCoordinate,
@@ -438,17 +429,6 @@ class VertexInterpreter:
             )
         return int(coordinate.winner_prefix * self.shape[1] + coordinate.column)
 
-    def coordinate_from_flat_index(self, index: int) -> VertexCoordinate:
-        """Invert ``coordinate_flat_index``."""
-        idx = int(index)
-        if idx < 0 or idx >= self.shape[0] * self.shape[1]:
-            raise ValueError(
-                f"flat coordinate index must lie in [0, {self.shape[0] * self.shape[1]}): "
-                f"{idx}"
-            )
-        row, column = divmod(idx, self.shape[1])
-        return VertexCoordinate(row, column)
-
     def candidate_index(self, candidate: int | str) -> int:
         if isinstance(candidate, str):
             try:
@@ -479,26 +459,6 @@ class VertexInterpreter:
             raise ValueError(f"Source vertex {edge.src} for edge {edge.ref} has no fpv_vec.")
         return cache.fpv_vec
 
-    def _vertex_wt_vec(self) -> NDArray[np.float64]:
-        incoming = self.graph.primary_parent_edge.get(self.vertex.ref)
-        incoming_edge = None if incoming is None else self.graph.edge(incoming)
-        cache = self.graph.runtime_cache.get(self.vertex.ref)
-        if cache is None:
-            cache = self.graph._materialize_cache_from_state(self.vertex.ref)
-        context = self.graph._expansion_context(
-            self.vertex.ref,
-            self.vertex,
-            cache,
-            incoming_edge,
-        )
-        weights = np.asarray(context, dtype=np.float64)
-        if weights.ndim != 1:
-            raise ValueError(
-                "VertexInterpreter.base_point currently requires a one-dimensional "
-                "vertex weight vector."
-            )
-        return weights
-
     def _normalize_theta_key(self, key: ThetaKey) -> ThetaKey:
         if not _is_theta_key(key):
             raise ValueError("theta keys must be a tuple of two integer flat indices.")
@@ -516,7 +476,7 @@ class VertexInterpreter:
             idx = int(candidate)
             if idx >= 0 and idx in hopefuls:
                 return idx
-        return -127
+        return SENTINEL
 
 
 __all__ = [

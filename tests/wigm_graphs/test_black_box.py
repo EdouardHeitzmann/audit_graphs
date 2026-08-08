@@ -171,7 +171,7 @@ def test_seeded_build_accepts_progress_alias(capsys):
     graph.seeded_build(
         strong_candidates=["S1", "S2"],
         uncertain_winner="W",
-        shwo_progress=True,
+        show_progress=True,
     )
 
     captured = capsys.readouterr()

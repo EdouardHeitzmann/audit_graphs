@@ -6,8 +6,7 @@ from math import comb
 import numpy as np
 from numpy.typing import NDArray
 
-
-SENTINEL = -127
+from .datatypes import SENTINEL
 
 
 def _normalize_candidates(candidates: Iterable[int] | None) -> frozenset[int]:

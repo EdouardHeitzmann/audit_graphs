@@ -7,8 +7,10 @@ import warnings
 import numpy as np
 from numpy.typing import NDArray
 
-
-SENTINEL = np.int16(-127)
+try:
+    from ..election_graphs.datatypes import SENTINEL
+except ImportError:
+    from election_graphs.datatypes import SENTINEL
 
 
 class ImplicitSampler:
