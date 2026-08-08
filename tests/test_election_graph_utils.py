@@ -1,7 +1,7 @@
 import numpy as np
 
 from src.election_graphs.utils import analyze_black_box_seed
-from votekit.pref_profile import NumpyRankProfile
+from src.election_graphs.numpy_profile import NumpyRankProfile
 
 
 def test_analyze_black_box_seed_seats_and_bounds_candidates():

@@ -11,7 +11,7 @@ from pathlib import Path
 from statistics import fmean
 from typing import Any, Sequence
 
-from votekit.cvr_loaders import load_numpy
+from ..election_graphs.numpy_profile import load_numpy
 
 from ..margin_search import heap_based_search
 from ..test_processes.delta_method import DeltaMethodAuditDriver

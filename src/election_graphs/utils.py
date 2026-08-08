@@ -258,7 +258,7 @@ def analyze_black_box_seed(
     Candidate indices always refer to the input profile. Results use candidate
     names because VoteKit reindexes candidates whenever a profile is condensed.
     """
-    from votekit.pref_profile.numpy_profile import (
+    from .numpy_profile import (
         numpy_profile_fpv,
         remove_and_reweigh_and_condense,
     )

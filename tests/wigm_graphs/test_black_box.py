@@ -17,7 +17,7 @@ from src.wigm_graphs.datatypes import (
     PostSeedTallies,
     VertexRef,
 )
-from votekit.pref_profile import NumpyRankProfile
+from src.election_graphs.numpy_profile import NumpyRankProfile
 
 
 def _profile() -> NumpyRankProfile:
