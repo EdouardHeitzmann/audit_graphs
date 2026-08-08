@@ -20,7 +20,7 @@ from .interpreter import COORDINATE_COLUMNS, VertexInterpreter
 from .noise import ImplicitSampler
 
 if TYPE_CHECKING:
-    from noise_filtered_linearizer import SymbolicMarginModel
+    from src.optimizers.symbolic_linearizer import SymbolicMarginModel
 
 
 def log_comb(n: int, k: int) -> float:
@@ -308,7 +308,10 @@ def _numerical_recursive_margin_and_gradient(
 def _symbolic_margin_model(degree: int) -> "SymbolicMarginModel":
     """Build the symbolic margin itself, without differentiating it."""
     import sympy as sp
-    from noise_filtered_linearizer import build_recursive_margin, make_symbolic_array
+    from src.optimizers.symbolic_linearizer import (
+        build_recursive_margin,
+        make_symbolic_array,
+    )
 
     symbols = make_symbolic_array(int(degree), prefix=f"delta_d{degree}")
     quota = sp.Symbol(f"delta_quota_d{degree}", real=True, positive=True)

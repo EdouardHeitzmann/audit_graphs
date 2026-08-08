@@ -339,8 +339,8 @@ class VertexInterpreter:
         radius: float,
         **kwargs: Any,
     ):
-        """Call ``stv_partial_optimizer.minimize_partial`` for this graph quota."""
-        from stv_partial_optimizer import minimize_partial
+        """Call ``partial_optimizer.minimize_partial`` for this graph quota."""
+        from src.optimizers.partial_optimizer import minimize_partial
 
         dense_direction = (
             self.theta_from_key(direction)

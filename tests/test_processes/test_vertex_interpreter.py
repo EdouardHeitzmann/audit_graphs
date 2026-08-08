@@ -5,7 +5,7 @@ from dataclasses import dataclass
 import numpy as np
 import pytest
 
-from stv_partial_optimizer import evaluate_directional_derivative
+from src.optimizers.partial_optimizer import evaluate_directional_derivative
 from src.election_graphs.datatypes import EdgeAction
 from src.test_processes import (
     CobraCompilerV2,
