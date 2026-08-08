@@ -54,7 +54,7 @@ def fpv_tallies_from_matrix(
     return tallies
 
 
-def frozen_mentions_from_matrix(
+def maximum_possible_tallies_from_matrix(
     ballot_matrix: NDArray[np.integer],
     wt_vec: NDArray[np.float64],
     n_candidates: int,
@@ -98,7 +98,7 @@ def weak_candidates_from_strong(
     """
     Determine the weak set induced by a prescribed strong set.
 
-    A non-strong candidate is weak when its frozen mentions are at least LAM
+    A non-strong candidate is weak when its maximum possible tallies are at least LAM
     below the smallest current first-preference tally among strong candidates.
     """
     strong = _normalize_candidates(strong_candidates)
@@ -137,7 +137,7 @@ def weak_candidates_from_strong(
         masked_candidates=masked,
     )
     smallest_strong_fpv = min(float(current_fpv[candidate]) for candidate in active_strong)
-    frozen_mentions = frozen_mentions_from_matrix(
+    maximum_possible_tallies = maximum_possible_tallies_from_matrix(
         ballot_matrix,
         wt_vec,
         n_candidates,
@@ -151,11 +151,11 @@ def weak_candidates_from_strong(
         if (
             candidate not in active_strong
             and candidate not in masked
-            and frozen_mentions[candidate] + LAM <= smallest_strong_fpv
+            and maximum_possible_tallies[candidate] + LAM <= smallest_strong_fpv
         )
     )
 
-    return weak, frozen_mentions
+    return weak, maximum_possible_tallies
 
 
 def search_strong_weak_candidates(

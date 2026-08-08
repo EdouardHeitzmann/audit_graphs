@@ -490,14 +490,14 @@ def test_cobra_mentions_compiler_v2_projects_weak_mentions_before_strong():
         graph.candidate_names.index("W3"),
     }
     weak = graph.candidate_names.index("L1")
-    frozen_mentions = np.zeros(graph.n_candidates, dtype=np.float64)
-    frozen_mentions[weak] = 5_000.0
+    maximum_possible_tallies = np.zeros(graph.n_candidates, dtype=np.float64)
+    maximum_possible_tallies[weak] = 5_000.0
 
     compiler = CobraMentionsCompilerV2(
         interpreter,
         "L1",
         strong_candidates=strong,
-        frozen_mentions=frozen_mentions,
+        maximum_possible_tallies=maximum_possible_tallies,
         lowest_strong_candidate=graph.candidate_names.index("S2"),
         lowest_strong_tally=30_000,
         radius=4_000,
@@ -530,14 +530,14 @@ def test_cobra_mentions_noise_filter_compiler_uses_mentions_coordinates():
         graph.candidate_names.index("W3"),
     }
     weak = graph.candidate_names.index("L1")
-    frozen_mentions = np.zeros(graph.n_candidates, dtype=np.float64)
-    frozen_mentions[weak] = 5_000.0
+    maximum_possible_tallies = np.zeros(graph.n_candidates, dtype=np.float64)
+    maximum_possible_tallies[weak] = 5_000.0
 
     compiler = CobraMentionsNoiseFilterCompiler(
         interpreter,
         "L1",
         strong_candidates=strong,
-        frozen_mentions=frozen_mentions,
+        maximum_possible_tallies=maximum_possible_tallies,
         lowest_strong_candidate=graph.candidate_names.index("S2"),
         lowest_strong_tally=30_000,
         radius=4_000,

@@ -517,7 +517,7 @@ class CobraMentionsCompilerV2(CobraCompilerV2Base):
         weak_candidate: int | str,
         *,
         strong_candidates: Iterable[int],
-        frozen_mentions: Sequence[float] | NDArray[np.float64],
+        maximum_possible_tallies: Sequence[float] | NDArray[np.float64],
         lowest_strong_candidate: int | None = None,
         lowest_strong_tally: int | float | None = None,
         **kwargs: Any,
@@ -530,11 +530,11 @@ class CobraMentionsCompilerV2(CobraCompilerV2Base):
         if self.weak_candidate in self.strong_candidates:
             raise ValueError("weak_candidate cannot also be a strong candidate.")
 
-        self.frozen_mentions = np.asarray(frozen_mentions, dtype=np.float64)
-        if self.frozen_mentions.ndim != 1:
-            raise ValueError("frozen_mentions must be one-dimensional.")
-        if len(self.frozen_mentions) <= self.weak_candidate:
-            raise ValueError("frozen_mentions must be indexed by candidate.")
+        self.maximum_possible_tallies = np.asarray(maximum_possible_tallies, dtype=np.float64)
+        if self.maximum_possible_tallies.ndim != 1:
+            raise ValueError("maximum_possible_tallies must be one-dimensional.")
+        if len(self.maximum_possible_tallies) <= self.weak_candidate:
+            raise ValueError("maximum_possible_tallies must be indexed by candidate.")
 
         if lowest_strong_candidate is None:
             if interpreter.vertex.tallies is None:
@@ -588,7 +588,7 @@ class CobraMentionsCompilerV2(CobraCompilerV2Base):
 
     def _recorded_margin(self) -> float:
         return self.lowest_strong_tally - float(
-            self.frozen_mentions[self.weak_candidate]
+            self.maximum_possible_tallies[self.weak_candidate]
         )
 
     def _mentions_base_point(
@@ -752,7 +752,7 @@ class CobraCompiler:
         critical_margin_type: CriticalMarginType | str | None = None,
         strong_candidates: Iterable[int] | None = None,
         very_strong_candidates: Iterable[int] | None = None,
-        frozen_mentions: Sequence[float] | NDArray[np.float64] | None = None,
+        maximum_possible_tallies: Sequence[float] | NDArray[np.float64] | None = None,
         lowest_strong_candidate: int | None = None,
         lowest_strong_tally: int | float | None = None,
     ) -> None:
@@ -803,10 +803,10 @@ class CobraCompiler:
                 )
             )
         )
-        self.frozen_mentions = (
+        self.maximum_possible_tallies = (
             None
-            if frozen_mentions is None
-            else np.asarray(frozen_mentions, dtype=np.float64)
+            if maximum_possible_tallies is None
+            else np.asarray(maximum_possible_tallies, dtype=np.float64)
         )
         self.lowest_strong_candidate = (
             None if lowest_strong_candidate is None else int(lowest_strong_candidate)
@@ -1031,10 +1031,10 @@ class CobraCompiler:
     def _select_candidate_to_mentions_margin(self) -> None:
         if not self.strong_candidates:
             raise ValueError("candidate-to-mentions compilers require strong_candidates.")
-        if self.frozen_mentions is None:
-            raise ValueError("candidate-to-mentions compilers require frozen_mentions.")
-        if len(self.frozen_mentions) != len(self.candidate_strings):
-            raise ValueError("frozen_mentions must be indexed by candidate.")
+        if self.maximum_possible_tallies is None:
+            raise ValueError("candidate-to-mentions compilers require maximum_possible_tallies.")
+        if len(self.maximum_possible_tallies) != len(self.candidate_strings):
+            raise ValueError("maximum_possible_tallies must be indexed by candidate.")
 
         if self.lowest_strong_candidate is None:
             self.lowest_strong_candidate = min(
@@ -1049,7 +1049,7 @@ class CobraCompiler:
         self.canonical_loser = int(self.candidate_index)
         self.critical_margin = (
             float(self.lowest_strong_tally)
-            - float(self.frozen_mentions[self.candidate_index])
+            - float(self.maximum_possible_tallies[self.candidate_index])
         )
 
     def _select_elimination_escape_margin(self) -> None:

@@ -34,13 +34,13 @@ def test_seeded_mentions_use_post_very_strong_wt_vec_not_unseeded_root():
     driver = GlobalAuditDriver.__new__(GlobalAuditDriver)
     driver.seed_very_strong_candidates = frozenset({3})
     driver.seed_strong_candidates = frozenset({0, 1})
-    driver.seed_frozen_mentions = None
+    driver.seed_maximum_possible_tallies = None
     driver.seed_prebatch_strong_tallies = None
 
     driver._initialize_seeded_mentions_data(graph)
 
     assert driver.seed_prebatch_strong_tallies.tolist() == [30.0, 10.0, 10.0, 0.0]
-    assert driver.seed_frozen_mentions.tolist() == [0.0, 0.0, 10.0, 0.0]
+    assert driver.seed_maximum_possible_tallies.tolist() == [0.0, 0.0, 10.0, 0.0]
 
 
 def test_driver_initializes_from_seeded_graph_with_very_strong_preseed_path():
@@ -126,7 +126,7 @@ def test_driver_initializes_from_seeded_graph_with_very_strong_preseed_path():
     )
     assert mentions_compiler.critical_margin == (
         mentions_compiler.lowest_strong_tally
-        - mentions_compiler.frozen_mentions[mentions_compiler.weak_candidate]
+        - mentions_compiler.maximum_possible_tallies[mentions_compiler.weak_candidate]
     )
 
 
@@ -172,7 +172,7 @@ def test_v2_driver_initializes_batch_seeded_mentions_compilers():
 
     assert any(isinstance(c, CobraMentionsCompilerV2) for c in driver.compilers)
     assert any(isinstance(c, CobraMentionsNoiseFilterCompiler) for c in driver.compilers)
-    assert driver.seed_frozen_mentions is not None
+    assert driver.seed_maximum_possible_tallies is not None
     assert driver.seed_prebatch_strong_tallies is not None
     mentions_info = next(info for info in driver.compiler_info if info.escape_id.endswith("-M3"))
     assert driver.lookup_compiler(mentions_info.escape_id).weak_candidate == 3

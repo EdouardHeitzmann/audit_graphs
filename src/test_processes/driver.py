@@ -25,13 +25,13 @@ try:
     from ..election_graphs.datatypes import EdgeAction, ElectionStatus
     from ..election_graphs.utils import (
         fpv_tallies_from_matrix,
-        frozen_mentions_from_matrix,
+        maximum_possible_tallies_from_matrix,
     )
 except ImportError:
     from election_graphs.datatypes import EdgeAction, ElectionStatus
     from election_graphs.utils import (
         fpv_tallies_from_matrix,
-        frozen_mentions_from_matrix,
+        maximum_possible_tallies_from_matrix,
     )
 
 
@@ -107,7 +107,7 @@ class GlobalAuditDriver:
         self.seed_weak_candidates = frozenset(
             getattr(audit_graph, "seed_weak_candidates", frozenset())
         )
-        self.seed_frozen_mentions: NDArray[np.float64] | None = None
+        self.seed_maximum_possible_tallies: NDArray[np.float64] | None = None
         self.seed_prebatch_strong_tallies: NDArray[np.float64] | None = None
         self.sample_size = self._initialize_sample_source(
             audit_graph=audit_graph,
@@ -478,9 +478,9 @@ class GlobalAuditDriver:
         strong_vertex = self._find_strong_only_seed_vertex(audit_graph)
         self._validate_no_election_edges_from_strong_vertex(audit_graph, strong_vertex)
         self._initialize_seeded_mentions_data(audit_graph)
-        assert self.seed_frozen_mentions is not None
+        assert self.seed_maximum_possible_tallies is not None
         assert self.seed_prebatch_strong_tallies is not None
-        frozen_mentions = self.seed_frozen_mentions
+        maximum_possible_tallies = self.seed_maximum_possible_tallies
         strong_tallies = self.seed_prebatch_strong_tallies
 
         for candidate in sorted(self.seed_strong_candidates):
@@ -510,13 +510,13 @@ class GlobalAuditDriver:
             if self.compiler_type == "noise":
                 interpreter = self._interpreter_for_vertex(audit_graph, strong_vertex)
                 critical_margin = (
-                    lowest_strong_tally - float(frozen_mentions[weak_candidate])
+                    lowest_strong_tally - float(maximum_possible_tallies[weak_candidate])
                 )
                 compiler = CobraMentionsNoiseFilterCompiler(
                     interpreter,
                     int(weak_candidate),
                     strong_candidates=self.seed_strong_candidates,
-                    frozen_mentions=frozen_mentions,
+                    maximum_possible_tallies=maximum_possible_tallies,
                     lowest_strong_candidate=int(lowest_strong_candidate),
                     lowest_strong_tally=lowest_strong_tally,
                     LAM=float(audit_graph.LAM),
@@ -539,7 +539,7 @@ class GlobalAuditDriver:
                     critical_margin_type=CriticalMarginType.CANDIDATE_TO_MENTIONS,
                     strong_candidates=self.seed_strong_candidates,
                     very_strong_candidates=self.seed_very_strong_candidates,
-                    frozen_mentions=frozen_mentions,
+                    maximum_possible_tallies=maximum_possible_tallies,
                     lowest_strong_candidate=int(lowest_strong_candidate),
                     lowest_strong_tally=lowest_strong_tally,
                 )
@@ -608,9 +608,9 @@ class GlobalAuditDriver:
             masked_candidates=masked,
         )
 
-        graph_mentions = getattr(audit_graph, "seed_frozen_mentions", None)
+        graph_mentions = getattr(audit_graph, "seed_maximum_possible_tallies", None)
         if graph_mentions is None:
-            self.seed_frozen_mentions = frozen_mentions_from_matrix(
+            self.seed_maximum_possible_tallies = maximum_possible_tallies_from_matrix(
                 audit_graph.ballot_matrix,
                 wt_vec,
                 int(audit_graph.n_candidates),
@@ -618,7 +618,7 @@ class GlobalAuditDriver:
                 masked_candidates=masked,
             )
         else:
-            self.seed_frozen_mentions = np.asarray(graph_mentions, dtype=np.float64)
+            self.seed_maximum_possible_tallies = np.asarray(graph_mentions, dtype=np.float64)
 
     def _seeded_prebatch_wt_vec_from_graph(self, audit_graph: Any) -> NDArray[np.float64]:
         """
@@ -929,7 +929,7 @@ class V2CompilerSpec:
     margin_type: CriticalMarginType | None = None
     is_noise_filter: bool = False
     strong_candidates: frozenset[int] | None = None
-    frozen_mentions: NDArray[np.float64] | None = None
+    maximum_possible_tallies: NDArray[np.float64] | None = None
     lowest_strong_candidate: int | None = None
     lowest_strong_tally: float | None = None
 
@@ -1010,7 +1010,7 @@ class GlobalAuditDriverV2:
         self.seed_weak_candidates = frozenset(
             getattr(audit_graph, "seed_weak_candidates", frozenset())
         )
-        self.seed_frozen_mentions: NDArray[np.float64] | None = None
+        self.seed_maximum_possible_tallies: NDArray[np.float64] | None = None
         self.seed_prebatch_strong_tallies: NDArray[np.float64] | None = None
         self.canonical_winner_set = self._canonical_winner_set_from_terminal(
             audit_graph
@@ -1388,7 +1388,7 @@ class GlobalAuditDriverV2:
         )
         self._validate_no_election_edges_from_strong_vertex(audit_graph, strong_vertex)
         self._initialize_seeded_mentions_data(audit_graph)
-        if self.seed_frozen_mentions is None:
+        if self.seed_maximum_possible_tallies is None:
             raise ValueError("Seeded mentions were not initialized.")
         if self.seed_prebatch_strong_tallies is None:
             raise ValueError("Seeded strong tallies were not initialized.")
@@ -1422,7 +1422,7 @@ class GlobalAuditDriverV2:
                 interpreter,
                 int(weak_candidate),
                 strong_candidates=self.seed_strong_candidates,
-                frozen_mentions=self.seed_frozen_mentions,
+                maximum_possible_tallies=self.seed_maximum_possible_tallies,
                 lowest_strong_candidate=int(lowest_strong_candidate),
                 lowest_strong_tally=lowest_strong_tally,
                 radius=self.r,
@@ -1436,7 +1436,7 @@ class GlobalAuditDriverV2:
                 interpreter,
                 int(weak_candidate),
                 strong_candidates=self.seed_strong_candidates,
-                frozen_mentions=self.seed_frozen_mentions,
+                maximum_possible_tallies=self.seed_maximum_possible_tallies,
                 lowest_strong_candidate=int(lowest_strong_candidate),
                 lowest_strong_tally=lowest_strong_tally,
                 radius=self.r,
@@ -1451,7 +1451,7 @@ class GlobalAuditDriverV2:
                 candidate=int(weak_candidate),
                 margin_type=CriticalMarginType.CANDIDATE_TO_MENTIONS,
                 strong_candidates=self.seed_strong_candidates,
-                frozen_mentions=self.seed_frozen_mentions,
+                maximum_possible_tallies=self.seed_maximum_possible_tallies,
                 lowest_strong_candidate=int(lowest_strong_candidate),
                 lowest_strong_tally=lowest_strong_tally,
             )
@@ -1463,7 +1463,7 @@ class GlobalAuditDriverV2:
                 margin_type=CriticalMarginType.CANDIDATE_TO_MENTIONS,
                 is_noise_filter=True,
                 strong_candidates=self.seed_strong_candidates,
-                frozen_mentions=self.seed_frozen_mentions,
+                maximum_possible_tallies=self.seed_maximum_possible_tallies,
                 lowest_strong_candidate=int(lowest_strong_candidate),
                 lowest_strong_tally=lowest_strong_tally,
             )
@@ -1538,9 +1538,9 @@ class GlobalAuditDriverV2:
             masked_candidates=masked,
         )
 
-        graph_mentions = getattr(audit_graph, "seed_frozen_mentions", None)
+        graph_mentions = getattr(audit_graph, "seed_maximum_possible_tallies", None)
         if graph_mentions is None:
-            self.seed_frozen_mentions = frozen_mentions_from_matrix(
+            self.seed_maximum_possible_tallies = maximum_possible_tallies_from_matrix(
                 audit_graph.ballot_matrix,
                 wt_vec,
                 int(audit_graph.n_candidates),
@@ -1548,7 +1548,7 @@ class GlobalAuditDriverV2:
                 masked_candidates=masked,
             )
         else:
-            self.seed_frozen_mentions = np.asarray(graph_mentions, dtype=np.float64)
+            self.seed_maximum_possible_tallies = np.asarray(graph_mentions, dtype=np.float64)
 
     def _seeded_prebatch_wt_vec_from_graph(self, audit_graph: Any) -> NDArray[np.float64]:
         if not hasattr(audit_graph, "root_wt_vec"):
@@ -1947,7 +1947,7 @@ class GlobalAuditDriverV2:
                 interpreter,
                 spec.candidate,
                 strong_candidates=spec.strong_candidates,
-                frozen_mentions=spec.frozen_mentions,
+                maximum_possible_tallies=spec.maximum_possible_tallies,
                 lowest_strong_candidate=spec.lowest_strong_candidate,
                 lowest_strong_tally=spec.lowest_strong_tally,
                 **common,
@@ -1957,7 +1957,7 @@ class GlobalAuditDriverV2:
                 interpreter,
                 spec.candidate,
                 strong_candidates=spec.strong_candidates,
-                frozen_mentions=spec.frozen_mentions,
+                maximum_possible_tallies=spec.maximum_possible_tallies,
                 lowest_strong_candidate=spec.lowest_strong_candidate,
                 lowest_strong_tally=spec.lowest_strong_tally,
                 **common,

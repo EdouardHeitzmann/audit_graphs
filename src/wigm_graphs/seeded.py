@@ -18,13 +18,13 @@ from .graph_wigm import WIGMGraphConstructor
 
 try:
     from ..election_graphs.utils import (
-        frozen_mentions_from_matrix,
+        maximum_possible_tallies_from_matrix,
         search_strong_weak_candidates,
         weak_candidates_from_strong,
     )
 except ImportError:
     from election_graphs.utils import (
-        frozen_mentions_from_matrix,
+        maximum_possible_tallies_from_matrix,
         search_strong_weak_candidates,
         weak_candidates_from_strong,
     )
@@ -47,7 +47,7 @@ class SeededWIGMGraphConstructor(WIGMGraphConstructor):
         self.seed_very_strong_candidates = frozenset()
         self.seed_strong_candidates = frozenset()
         self.seed_weak_candidates = frozenset()
-        self.seed_frozen_mentions: NDArray[np.float64] | None = None
+        self.seed_maximum_possible_tallies: NDArray[np.float64] | None = None
 
     def seeded_build(
         self,
@@ -176,7 +176,7 @@ class SeededWIGMGraphConstructor(WIGMGraphConstructor):
             )
 
         if strong is None:
-            strong, weak, frozen_mentions = search_strong_weak_candidates(
+            strong, weak, maximum_possible_tallies = search_strong_weak_candidates(
                 self.ballot_matrix,
                 seeded_wt_vec,
                 self.n_candidates,
@@ -186,7 +186,7 @@ class SeededWIGMGraphConstructor(WIGMGraphConstructor):
                 masked_candidates=already_elected_set,
             )
         elif weak is None:
-            weak, frozen_mentions = weak_candidates_from_strong(
+            weak, maximum_possible_tallies = weak_candidates_from_strong(
                 self.ballot_matrix,
                 seeded_wt_vec,
                 self.n_candidates,
@@ -197,7 +197,7 @@ class SeededWIGMGraphConstructor(WIGMGraphConstructor):
                 masked_candidates=already_elected_set,
             )
         else:
-            frozen_mentions = frozen_mentions_from_matrix(
+            maximum_possible_tallies = maximum_possible_tallies_from_matrix(
                 self.ballot_matrix,
                 seeded_wt_vec,
                 self.n_candidates,
@@ -210,7 +210,7 @@ class SeededWIGMGraphConstructor(WIGMGraphConstructor):
         self.seed_very_strong_candidates = preseeded_very_strong
         self.seed_strong_candidates = strong
         self.seed_weak_candidates = weak
-        self.seed_frozen_mentions = frozen_mentions
+        self.seed_maximum_possible_tallies = maximum_possible_tallies
         if diagnostics:
             self._print_seeded_build_diagnostics(
                 "candidate partition complete",

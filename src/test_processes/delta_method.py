@@ -14,7 +14,7 @@ from .cobra import CriticalMarginType
 from ..election_graphs.datatypes import EdgeAction, ElectionStatus
 from ..election_graphs.utils import (
     fpv_tallies_from_matrix,
-    frozen_mentions_from_matrix,
+    maximum_possible_tallies_from_matrix,
 )
 from .interpreter import COORDINATE_COLUMNS, VertexInterpreter
 from .noise import ImplicitSampler
@@ -395,7 +395,7 @@ class DeltaMethodCompiler:
         candidate: int | str | None = None,
         weak_candidate: int | str | None = None,
         strong_candidates: Iterable[int | str] | None = None,
-        frozen_mentions: NDArray[np.float64] | None = None,
+        maximum_possible_tallies: NDArray[np.float64] | None = None,
         lowest_strong_candidate: int | str | None = None,
         lowest_strong_tally: int | float | None = None,
         quota: int | float | None = None,
@@ -442,7 +442,7 @@ class DeltaMethodCompiler:
         self.strong_candidate: int | None = None
         self.strong_candidates: frozenset[int] = frozenset()
         self.prebatch_seated_candidates: frozenset[int] = frozenset()
-        self.frozen_mentions: NDArray[np.float64] | None = None
+        self.maximum_possible_tallies: NDArray[np.float64] | None = None
         self.lowest_strong_tally: float | None = None
         expected_recorded_margin: float | None = None
 
@@ -500,14 +500,14 @@ class DeltaMethodCompiler:
                 raise ValueError("strong_candidates cannot be empty.")
             if self.weak_candidate in self.strong_candidates:
                 raise ValueError("weak_candidate cannot also be strong.")
-            if frozen_mentions is None:
-                raise ValueError("frozen_mentions is required for mentions margins.")
-            self.frozen_mentions = np.asarray(frozen_mentions, dtype=np.float64)
+            if maximum_possible_tallies is None:
+                raise ValueError("maximum_possible_tallies is required for mentions margins.")
+            self.maximum_possible_tallies = np.asarray(maximum_possible_tallies, dtype=np.float64)
             if (
-                self.frozen_mentions.ndim != 1
-                or len(self.frozen_mentions) <= self.weak_candidate
+                self.maximum_possible_tallies.ndim != 1
+                or len(self.maximum_possible_tallies) <= self.weak_candidate
             ):
-                raise ValueError("frozen_mentions must be a candidate-indexed vector.")
+                raise ValueError("maximum_possible_tallies must be a candidate-indexed vector.")
             if lowest_strong_candidate is None:
                 if self.base_vertex.tallies is None:
                     raise ValueError("lowest_strong_candidate is required.")
@@ -538,7 +538,7 @@ class DeltaMethodCompiler:
             else:
                 self.lowest_strong_tally = float(lowest_strong_tally)
             expected_recorded_margin = self.lowest_strong_tally - float(
-                self.frozen_mentions[self.weak_candidate]
+                self.maximum_possible_tallies[self.weak_candidate]
             )
             self.base_point = self._mentions_base_point()
         else:  # pragma: no cover - enum validation makes this defensive only
@@ -942,7 +942,7 @@ class DeltaMethodAuditDriver:
                 audit_graph, "seed_weak_candidates", frozenset()
             )
         )
-        self.seed_frozen_mentions: NDArray[np.float64] | None = None
+        self.seed_maximum_possible_tallies: NDArray[np.float64] | None = None
         self.seed_prebatch_strong_tallies: NDArray[np.float64] | None = None
         self.sampler: ImplicitSampler | None = None
         self.BAL: NDArray[np.integer] | None = None
@@ -1360,7 +1360,7 @@ class DeltaMethodAuditDriver:
         strong_vertex = self._find_strong_only_seed_vertex()
         self._validate_no_election_edges_from_strong_vertex(strong_vertex)
         self._initialize_seeded_mentions_data()
-        assert self.seed_frozen_mentions is not None
+        assert self.seed_maximum_possible_tallies is not None
         assert self.seed_prebatch_strong_tallies is not None
 
         interpreter = self._interpreter_for_vertex(strong_vertex)
@@ -1392,7 +1392,7 @@ class DeltaMethodAuditDriver:
                 margin_type=CriticalMarginType.CANDIDATE_TO_MENTIONS,
                 weak_candidate=int(weak_candidate),
                 strong_candidates=self.seed_strong_candidates,
-                frozen_mentions=self.seed_frozen_mentions,
+                maximum_possible_tallies=self.seed_maximum_possible_tallies,
                 lowest_strong_candidate=int(lowest_strong_candidate),
                 lowest_strong_tally=lowest_strong_tally,
                 alpha=self.alpha,
@@ -1471,10 +1471,10 @@ class DeltaMethodAuditDriver:
         )
 
         graph_mentions = getattr(
-            self.audit_graph, "seed_frozen_mentions", None
+            self.audit_graph, "seed_maximum_possible_tallies", None
         )
         if graph_mentions is None:
-            self.seed_frozen_mentions = frozen_mentions_from_matrix(
+            self.seed_maximum_possible_tallies = maximum_possible_tallies_from_matrix(
                 self.audit_graph.ballot_matrix,
                 prebatch_weights,
                 int(self.audit_graph.n_candidates),
@@ -1482,7 +1482,7 @@ class DeltaMethodAuditDriver:
                 masked_candidates=self.seed_very_strong_candidates,
             )
         else:
-            self.seed_frozen_mentions = np.asarray(
+            self.seed_maximum_possible_tallies = np.asarray(
                 graph_mentions, dtype=np.float64
             )
 

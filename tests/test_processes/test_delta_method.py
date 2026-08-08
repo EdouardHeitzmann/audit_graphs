@@ -446,7 +446,7 @@ def test_delta_driver_initializes_batch_seeded_mentions_compilers():
         [0.0, 300.0, 250.0, 100.0],
     )
     np.testing.assert_allclose(
-        driver.seed_frozen_mentions,
+        driver.seed_maximum_possible_tallies,
         [0.0, 0.0, 0.0, 100.0],
     )
 

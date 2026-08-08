@@ -31,7 +31,7 @@ def make_mentions_compiler() -> CobraCompiler:
             critical_margin_type=CriticalMarginType.CANDIDATE_TO_MENTIONS,
             strong_candidates={0, 1},
             very_strong_candidates={3},
-            frozen_mentions=np.array([0.0, 0.0, 20.0, 0.0]),
+            maximum_possible_tallies=np.array([0.0, 0.0, 20.0, 0.0]),
             lowest_strong_candidate=1,
             lowest_strong_tally=90,
         )

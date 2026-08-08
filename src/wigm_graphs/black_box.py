@@ -180,7 +180,7 @@ class BlackBoxWIGMGraphConstructor(SeededWIGMGraphConstructor):
         self.seed_very_strong_candidates = very_strong
         self.seed_strong_candidates = strong
         self.seed_weak_candidates = weak
-        self.seed_frozen_mentions = None
+        self.seed_maximum_possible_tallies = None
 
         metadata = BlackBoxElectionData(
             candidate=w,
