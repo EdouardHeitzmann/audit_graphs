@@ -19,6 +19,7 @@ from .cobra import (
     plot_profiled_compiler,
 )
 from .interpreter import VertexInterpreter
+from .margins import critical_margin_for_escape
 from .noise import ImplicitSampler
 
 try:
@@ -380,60 +381,28 @@ class GlobalAuditDriver:
         simultaneous: bool,
     ) -> dict[str, Any]:
         """Identify the local coordinates whose noise can enable an escape edge."""
-        tallies = np.asarray(vertex.tallies, dtype=np.float64)
         graph = self.audit_graph
+        result = critical_margin_for_escape(
+            vertex,
+            candidate,
+            action,
+            quota=graph.quota,
+            MoI=graph.MoI,
+            simultaneous=simultaneous,
+        )
+        if result is not None:
+            return result
 
         if action == EdgeAction.ELIMINATE:
-            forced = np.where(tallies >= graph.quota + graph.MoI)[0]
-            if len(forced) > 0:
-                winner = int(forced[np.argmax(tallies[forced])])
-                return {
-                    "type": CriticalMarginType.CANDIDATE_ABOVE_QUOTA,
-                    "candidate": winner,
-                    "margin": float(tallies[winner] - graph.quota),
-                }
-
-            hopefuls = np.asarray(sorted(vertex.key.hopefuls), dtype=int)
-            lowest = int(hopefuls[np.argmin(tallies[hopefuls])])
-            if lowest == candidate:
-                raise ValueError(
-                    "Elimination escape edge is incoherent: candidate is already "
-                    f"the lowest hopeful. candidate={candidate}, tallies={tallies}."
-                )
-            return {
-                "type": CriticalMarginType.CANDIDATE_TO_CANDIDATE,
-                "c": int(candidate),
-                "l": lowest,
-                "margin": float(tallies[candidate] - tallies[lowest]),
-            }
-
-        c_tally = float(tallies[candidate])
-        if not simultaneous:
-            challengers = np.where(tallies > c_tally + graph.MoI)[0]
-            challengers = np.asarray(
-                [idx for idx in challengers if idx != candidate],
-                dtype=int,
+            raise ValueError(
+                "Elimination escape edge is incoherent: candidate is already "
+                f"the lowest hopeful. candidate={candidate}, "
+                f"tallies={np.asarray(vertex.tallies, dtype=np.float64)}."
             )
-            if len(challengers) > 0:
-                winner = int(challengers[np.argmax(tallies[challengers])])
-                return {
-                    "type": CriticalMarginType.CANDIDATE_TO_CANDIDATE,
-                    "c": winner,
-                    "l": int(candidate),
-                    "margin": float(tallies[winner] - c_tally),
-                }
-
-        if c_tally + graph.MoI < graph.quota:
-            return {
-                "type": CriticalMarginType.CANDIDATE_BELOW_QUOTA,
-                "candidate": int(candidate),
-                "margin": float(graph.quota - c_tally),
-            }
-
         raise ValueError(
             "Could not identify a noise-filter margin for election escape edge: "
-            f"candidate={candidate}, tally={c_tally}, quota={graph.quota}, "
-            f"MoI={graph.MoI}, simultaneous={simultaneous}."
+            f"candidate={candidate}, tally={float(vertex.tallies[candidate])}, "
+            f"quota={graph.quota}, MoI={graph.MoI}, simultaneous={simultaneous}."
         )
 
     def add_compiler(
@@ -1630,52 +1599,14 @@ class GlobalAuditDriverV2:
         candidate: int,
         action: EdgeAction,
     ) -> dict[str, Any] | None:
-        tallies = np.asarray(vertex.tallies, dtype=np.float64)
-        if action == EdgeAction.ELIMINATE:
-            forced = np.where(tallies >= self.audit_graph.quota + self.audit_graph.MoI)[0]
-            if len(forced) > 0:
-                winner = int(forced[np.argmax(tallies[forced])])
-                margin = float(tallies[winner] - self.audit_graph.quota)
-                return {
-                    "type": CriticalMarginType.CANDIDATE_ABOVE_QUOTA,
-                    "candidate": winner,
-                    "margin": margin,
-                }
-
-            hopefuls = np.asarray(sorted(vertex.key.hopefuls), dtype=int)
-            lowest = int(hopefuls[np.argmin(tallies[hopefuls])])
-            if lowest == candidate:
-                return None
-            return {
-                "type": CriticalMarginType.CANDIDATE_TO_CANDIDATE,
-                "c": int(candidate),
-                "l": lowest,
-                "margin": float(tallies[candidate] - tallies[lowest]),
-            }
-
-        c_tally = float(tallies[candidate])
-        if not self.simultaneous:
-            challengers = np.where(tallies > c_tally + self.audit_graph.MoI)[0]
-            challengers = np.asarray(
-                [idx for idx in challengers if idx != candidate],
-                dtype=int,
-            )
-            if len(challengers) > 0:
-                winner = int(challengers[np.argmax(tallies[challengers])])
-                return {
-                    "type": CriticalMarginType.CANDIDATE_TO_CANDIDATE,
-                    "c": winner,
-                    "l": int(candidate),
-                    "margin": float(tallies[winner] - c_tally),
-                }
-
-        if c_tally + self.audit_graph.MoI < self.audit_graph.quota:
-            return {
-                "type": CriticalMarginType.CANDIDATE_BELOW_QUOTA,
-                "candidate": int(candidate),
-                "margin": float(self.audit_graph.quota - c_tally),
-            }
-        return None
+        return critical_margin_for_escape(
+            vertex,
+            candidate,
+            action,
+            quota=self.audit_graph.quota,
+            MoI=self.audit_graph.MoI,
+            simultaneous=self.simultaneous,
+        )
 
     def _append_compiler(
         self,

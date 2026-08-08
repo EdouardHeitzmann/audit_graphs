@@ -17,6 +17,7 @@ from ..election_graphs.utils import (
     maximum_possible_tallies_from_matrix,
 )
 from .interpreter import COORDINATE_COLUMNS, VertexInterpreter
+from .margins import critical_margin_for_escape
 from .noise import ImplicitSampler
 
 if TYPE_CHECKING:
@@ -1595,52 +1596,14 @@ class DeltaMethodAuditDriver:
         candidate: int,
         action: EdgeAction,
     ) -> dict[str, Any] | None:
-        tallies = np.asarray(vertex.tallies, dtype=np.float64)
-        if action == EdgeAction.ELIMINATE:
-            forced = np.where(
-                tallies >= self.audit_graph.quota + self.audit_graph.MoI
-            )[0]
-            if len(forced):
-                winner = int(forced[np.argmax(tallies[forced])])
-                return {
-                    "type": CriticalMarginType.CANDIDATE_ABOVE_QUOTA,
-                    "candidate": winner,
-                }
-            hopefuls = np.asarray(sorted(vertex.key.hopefuls), dtype=int)
-            lowest = int(hopefuls[np.argmin(tallies[hopefuls])])
-            if lowest == candidate:
-                return None
-            return {
-                "type": CriticalMarginType.CANDIDATE_TO_CANDIDATE,
-                "c": candidate,
-                "l": lowest,
-            }
-
-        candidate_tally = float(tallies[candidate])
-        if not self.simultaneous:
-            challengers = np.asarray(
-                [
-                    index
-                    for index in np.where(
-                        tallies > candidate_tally + self.audit_graph.MoI
-                    )[0]
-                    if index != candidate
-                ],
-                dtype=int,
-            )
-            if len(challengers):
-                winner = int(challengers[np.argmax(tallies[challengers])])
-                return {
-                    "type": CriticalMarginType.CANDIDATE_TO_CANDIDATE,
-                    "c": winner,
-                    "l": candidate,
-                }
-        if candidate_tally + self.audit_graph.MoI < self.audit_graph.quota:
-            return {
-                "type": CriticalMarginType.CANDIDATE_BELOW_QUOTA,
-                "candidate": candidate,
-            }
-        return None
+        return critical_margin_for_escape(
+            vertex,
+            candidate,
+            action,
+            quota=self.audit_graph.quota,
+            MoI=self.audit_graph.MoI,
+            simultaneous=self.simultaneous,
+        )
 
     def _interpreter_for_vertex(self, vertex: Any) -> VertexInterpreter:
         if vertex.ref not in self.interpreters:
