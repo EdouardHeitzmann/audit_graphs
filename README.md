@@ -1,24 +1,30 @@
-Contains replication code for my graph-based Meek auditing paper.
+# STV Audit Graphs
 
-## Graph-Based Meek Auditing
+Research code for graph-based Risk-Limiting Audits of Single Transferable Vote
+elections. Audit graphs enumerate the election paths an STV tabulation could
+plausibly follow if fewer than a fixed Margin of Insecurity worth of votes were
+misrecorded; auditing the graph's escape edges yields an RLA for the reported
+outcome.
 
-1. I recommend you get started with the `portland_d1_demo.ipynb` notebook. It walks through all the key components of the graph-based auditing process, and also shows how to construct the graph for Portland D1.
-2. The results for the Scottish election audits can be replicated in `audit_all_scottish.ipynb`.
-3. The other Portland audits can be replicated by swapping out the loaded profile in the demo notebook.
-4. The Australian audits can be replicated by the `territory_audit_driver.py` and `state_audit_driver.py` scripts; you will have to manually re-populate the votekit csv for these elections, and specify a path to them in the script.
-5. The full Portland D4 graph can be built via `build_d4_graph.py`; fair warning that this script will take several days to run, and costs a lot of memory. The `stream_stats.py` script can be used to print out minimal information about this graph after it is constructed.
+## Layout
 
-## Bayesian Ballot-Comparison Auditing for STV
+- `src/election_graphs/` — abstract layered-graph constructor, shared
+  datatypes, and profile utilities (maximum possible tallies, strong/weak
+  candidate search).
+- `src/wigm_graphs/` — plausible-graph constructors for WIGM STV, including
+  batch elimination (seeded builds) and black-boxed seatings.
+- `src/meek_graphs/` — sibling constructor for Meek STV.
+- `src/test_processes/` — the audit machinery: edge-local compilers (test
+  processes), vertex interpreters, global drivers, and the implicit
+  ballot sampler.
+- `src/experiments/` — end-to-end sample-size experiments backing the paper's
+  results table.
+- `src/margin_search/`, `src/symmetries.py`, `src/plotting.py` — supporting
+  utilities: largest-coherent-margin search, candidate-symmetry quotients,
+  and graph visualization.
+- `notebooks/` — exploratory and results notebooks; `mismatch.ipynb`
+  reproduces the paper's mismatch-based audits.
+- `tests/` — pytest suite; run with `uv run pytest tests/`.
 
-A naive first-pass implementation of Rivest's Bayesian ballot-comparison audit framework adapted for Single Transferable Vote (STV) elections.
-
-- **Documentation**: See [BAYESIAN_AUDIT_README.md](BAYESIAN_AUDIT_README.md) for detailed API documentation
-- **Demo Notebook**: `bayesian_audit_demo.ipynb` contains examples, stress tests, and usage patterns
-- **Module**: `src/bayesian_comparison.py` contains the core implementation
-
-Key features:
-- Direct posterior sampling via gamma/Dirichlet conjugacy (no MCMC)
-- Partial auditing for proper uncertainty quantification
-- Unseen type protection against adversarial attacks
-- Integration with VoteKit and existing noise infrastructure
-- Sequential stopping rules based on upset probability
+Profiles are loaded with [votekit](https://github.com/mggg/VoteKit). See
+`CLAUDE.md` for a map from the paper's conceptual objects to the code.
