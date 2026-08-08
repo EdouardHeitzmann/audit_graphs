@@ -695,3 +695,33 @@ When we are doing candidate-to-mentions assertions comparing the mentions of the
 In this case, we are unsure if the ballot should be considered to have transferred through `w` before getting to `l`, so we will treat it conservatively, and treat it as having the worst weight possible for the critical margin.
 
 ## ALPHA Compilers.
+
+We'll come back to these later.
+
+# Alternative Delta-Method Compilers.
+
+An alternative test process to reject escape edges uses the Delta Method to build confidence intervals for the critical margin, and rejects the escape edge if the interval is positive.
+To build this confidence intervals, we need stochastic upper bounds on the variances and covariances of the parameters in the `make_symbolic_array` function of the `noise_filtered_linearizer` module.
+
+There are already functions that provide such upper bounds using the hypergeometric distribution under `old_src/edouard/audit_machinery.py` -- such as `alternative_K_upper` -- which should be brought into a new module `src/test_processes/delta_method.py`.
+You can also have a look at the script `margin_audits.py` in that same subdir for reference / inspiration -- in particular `deg2_node_audit` does the kind of symbolic differentiation we're going to need below (although that function was built for Meek STV, and we're working on WIGM here).
+The type of delta method we're doing is also described here, if you need an extra reference: https://arxiv.org/abs/2602.04527.
+
+Bear in mind that the Delta Method is not an online sampling method -- it inherently needs to have a fixed sample size, and the version we're using also does sampling *without* replacement.
+We can still use the same implicit sampler to provide data to the driver and edge-local compilers, but the compilers won't need to do per-ballot updates; just compute a Delta Method confidence interval once.
+
+Then, we should adapt an edge-local interpreter which does the following:
+- determines if the edge is candidate-to-candidate or candidate-to-quota, determines the degree (number of winners) in the base of the edge, and determines (perhaps implicitly) the corresponding array of symbolic variables it should use to encode the sampled discrepancies in the context of the edge.
+- interprets each sampled discrepancy in the context of this symbolic array, and computes a square matrix of sample variances and covariances for those variables
+- plugs in the *total discrepancy counts* into the variance upper bound calculator, and replaces the diagonal entries of the sample variance matrix with that bound if it is larger (this will usually be the case)
+- separately, takes partials of the `build_recursive_margin` function of the `noise_filtered_linearizer` with respect to the symbolic array described above to build a symbolic gradient, then plugs in the sampled values of the each symbolic variable (after adjusting them with the sampled discrepancies) to get a numerical gradient of the critical margin -- note that we treat quota as a constant in WIGM (unlike the Meek margins in legacy code)
+- finally, conjugates the variance matrix by the numerical gradient to get a numerical variance of the critical margin, adjust this numerical margin by a SRSWOR factor of $(N-n)/(N-1)$ (where n is sample size), and uses this variance to build a (one-sided) confidence interval of the appropriate size $\alpha_0$
+
+Because the variance upper bound is stochastic, we need to allocate some our risk level to it.
+To do this, we split the overall risk of the audit as $\alpha = \alpha_0 + \alpha_K$, and we allocate $\alpha_K$ to the stochastic upper bound, whereas we give $\alpha_0$ to the construction of the confidence interval.
+We should set $\alpha = 0.05$ by default, and $\alpha_K = \alpha/10$ by default.
+Both of these should be options that can be changed globally and locally at the level of the driver or an individual compiler.
+
+The above-described "compiler" should certify (return `True`) if its one-sided interval is positive (assuming our critical margin is constructed so as to be positive in the CVR profile, which should be the case according to our conventions). 
+The audit driver should be well-adapted to compute the result of each compiler one-by-one, and then un-load most of the data contained in the compiler after it is no longer needed before moving on to the next.
+By default, the driver should compute all of the compilers, even if one of them fails early, although there should be an option to change this behavior.

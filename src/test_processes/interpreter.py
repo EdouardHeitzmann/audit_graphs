@@ -70,6 +70,8 @@ class VertexInterpreter:
         self.winners = tuple(edge.candidate for edge in self.seating_edges)
         self._prefix_cache: NDArray[np.integer] | None = None
         self._current_fpv_cache: NDArray[np.integer] | None = None
+        self._profile_candidate_mass_cache: NDArray[np.float64] | None = None
+        self._profile_prefix_mass_cache: NDArray[np.float64] | None = None
 
     @property
     def shape(self) -> tuple[int, int]:
@@ -99,8 +101,10 @@ class VertexInterpreter:
             )
             prefix = (fpv_matrix == winners).dot(bit_weights)
 
-        self._prefix_cache = prefix
-        return prefix.copy() if copy else prefix
+        max_prefix = (1 << self.vertex.degree) - 1
+        prefix_dtype = np.min_scalar_type(max_prefix)
+        self._prefix_cache = prefix.astype(prefix_dtype, copy=False)
+        return self._prefix_cache.copy() if copy else self._prefix_cache
 
     def current_fpv_vec(self, *, copy: bool = True) -> NDArray[np.integer]:
         """Return every profile row's current first hopeful candidate at this vertex."""
@@ -136,21 +140,88 @@ class VertexInterpreter:
         if c_idx == l_idx:
             raise ValueError("c and l must be distinct candidates.")
 
-        weights = (
-            self.profile_wt_vec()
-            if wt_vec is None
-            else np.asarray(wt_vec, dtype=float)
+        if wt_vec is not None:
+            weights = np.asarray(wt_vec, dtype=float)
+            fpv = self.current_fpv_vec(copy=False)
+            prefixes = self.winner_prefix_indices(copy=False)
+            columns = np.full(len(fpv), COORDINATE_COLUMNS["o"], dtype=np.int8)
+            columns[fpv == c_idx] = COORDINATE_COLUMNS["c"]
+            columns[fpv == l_idx] = COORDINATE_COLUMNS["l"]
+            point = np.zeros(self.shape, dtype=np.float64)
+            np.add.at(point, (prefixes, columns), weights)
+            return point
+
+        candidate_mass, prefix_mass = self.profile_mass_by_prefix_candidate(
+            copy=False
         )
-        fpv = self.current_fpv_vec(copy=False)
-        prefixes = self.winner_prefix_indices(copy=False)
-
-        columns = np.full(len(fpv), COORDINATE_COLUMNS["o"], dtype=np.int8)
-        columns[fpv == c_idx] = COORDINATE_COLUMNS["c"]
-        columns[fpv == l_idx] = COORDINATE_COLUMNS["l"]
-
         point = np.zeros(self.shape, dtype=np.float64)
-        np.add.at(point, (prefixes, columns), weights)
+        point[:, COORDINATE_COLUMNS["c"]] = candidate_mass[:, c_idx]
+        point[:, COORDINATE_COLUMNS["l"]] = candidate_mass[:, l_idx]
+        point[:, COORDINATE_COLUMNS["o"]] = (
+            prefix_mass - candidate_mass[:, c_idx] - candidate_mass[:, l_idx]
+        )
         return point
+
+    def candidate_base_point(
+        self,
+        candidate: int | str,
+        candidate_column: int,
+    ) -> NDArray[np.float64]:
+        """Build a one-candidate local base point from cached profile masses."""
+        candidate_idx = self.candidate_index(candidate)
+        column = int(candidate_column)
+        if column not in {COORDINATE_COLUMNS["c"], COORDINATE_COLUMNS["l"]}:
+            raise ValueError("candidate_column must be the c or l column.")
+        candidate_mass, prefix_mass = self.profile_mass_by_prefix_candidate(
+            copy=False
+        )
+        point = np.zeros(self.shape, dtype=np.float64)
+        point[:, column] = candidate_mass[:, candidate_idx]
+        point[:, COORDINATE_COLUMNS["o"]] = (
+            prefix_mass - candidate_mass[:, candidate_idx]
+        )
+        return point
+
+    def profile_mass_by_prefix_candidate(
+        self,
+        *,
+        copy: bool = True,
+    ) -> tuple[NDArray[np.float64], NDArray[np.float64]]:
+        """Aggregate profile weight once by winner prefix and current FPV."""
+        if (
+            self._profile_candidate_mass_cache is None
+            or self._profile_prefix_mass_cache is None
+        ):
+            weights = self.profile_wt_vec()
+            fpv = self.current_fpv_vec(copy=False)
+            prefixes = self.winner_prefix_indices(copy=False)
+            prefix_mass = np.bincount(
+                prefixes,
+                weights=weights,
+                minlength=self.shape[0],
+            ).astype(np.float64, copy=False)
+            candidate_mass = np.zeros(
+                (self.shape[0], int(self.graph.n_candidates)),
+                dtype=np.float64,
+            )
+            valid = (fpv >= 0) & (fpv < int(self.graph.n_candidates))
+            np.add.at(
+                candidate_mass,
+                (prefixes[valid], fpv[valid]),
+                weights[valid],
+            )
+            self._profile_candidate_mass_cache = candidate_mass
+            self._profile_prefix_mass_cache = prefix_mass
+
+        if copy:
+            return (
+                self._profile_candidate_mass_cache.copy(),
+                self._profile_prefix_mass_cache.copy(),
+            )
+        return (
+            self._profile_candidate_mass_cache,
+            self._profile_prefix_mass_cache,
+        )
 
     def profile_coordinates(
         self,

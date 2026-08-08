@@ -111,6 +111,12 @@ class AbstractGraphConstructor(ABC):
             tuple[VertexRef, VertexRef, EdgeAction, int],
             EdgeRef,
         ] = {}
+        self._outgoing_edge_index: dict[VertexRef, list[ElectionEdge]] = (
+            defaultdict(list)
+        )
+        self._incoming_edge_index: dict[VertexRef, list[ElectionEdge]] = (
+            defaultdict(list)
+        )
 
         # DFS stack.
         self.stack: deque[VertexRef] = deque()
@@ -887,6 +893,7 @@ class AbstractGraphConstructor(ABC):
         self.edge_layers = new_edge_layers
         self.edge_by_ref = new_edge_by_ref
         self.edge_lookup = new_edge_lookup
+        self._rebuild_edge_adjacency_indexes()
 
         self.layer_index = []
         self._initialize_graph_specific_storage()
@@ -1075,6 +1082,8 @@ class AbstractGraphConstructor(ABC):
         self.edge_layers[layer].append(edge)
         self.edge_by_ref[ref] = edge
         self.edge_lookup[lookup_key] = ref
+        self._outgoing_edge_index[src].append(edge)
+        self._incoming_edge_index[dst].append(edge)
 
         self.vertex(dst).path_multiplicity += self.vertex(src).path_multiplicity
 
@@ -1569,25 +1578,18 @@ class AbstractGraphConstructor(ABC):
         return VertexRef(layer=layer, local_id=local_id)
 
     def incoming_edges(self, ref: VertexRef) -> list[ElectionEdge]:
-        if ref.layer == 0:
-            return []
-
-        edge_layer_idx = ref.layer - 1
-        if edge_layer_idx >= len(self.edge_layers):
-            return []
-
-        return [
-            edge
-            for edge in self.edge_layers[edge_layer_idx]
-            if edge.dst == ref
-        ]
+        return list(self._incoming_edge_index.get(ref, ()))
 
     def outgoing_edges(self, ref: VertexRef) -> list[ElectionEdge]:
-        if ref.layer >= len(self.edge_layers):
-            return []
+        return list(self._outgoing_edge_index.get(ref, ()))
 
-        return [
-            edge
-            for edge in self.edge_layers[ref.layer]
-            if edge.src == ref
-        ]
+    def _rebuild_edge_adjacency_indexes(self) -> None:
+        """Rebuild constant-time incoming/outgoing edge lookup indexes."""
+        outgoing: dict[VertexRef, list[ElectionEdge]] = defaultdict(list)
+        incoming: dict[VertexRef, list[ElectionEdge]] = defaultdict(list)
+        for edge_layer in self.edge_layers:
+            for edge in edge_layer:
+                outgoing[edge.src].append(edge)
+                incoming[edge.dst].append(edge)
+        self._outgoing_edge_index = outgoing
+        self._incoming_edge_index = incoming

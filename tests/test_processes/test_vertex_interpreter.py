@@ -15,6 +15,7 @@ from src.test_processes import (
     CobraQuotaCompilerV2,
     CobraQuotaNoiseFilterCompiler,
     CriticalMarginType,
+    DeltaMethodCompiler,
     GlobalAuditDriver,
     GlobalAuditDriverV2,
     ImplicitSampler,
@@ -167,6 +168,33 @@ def test_vertex_interpreter_degree_two_basepoint_and_margin():
     )
 
 
+def test_delta_method_symbolic_margins_match_degree_one_and_two_graph_tallies():
+    graph = build_synthetic_graph()
+    l1 = graph.candidate_names.index("L1")
+    cases = [
+        (next(v for v in graph.layers[1] if l1 in v.key.hopefuls), "S2", "L1"),
+        (graph.layers[6][0], "W3", "S3"),
+    ]
+
+    for vertex, c, l in cases:
+        interpreter = VertexInterpreter(graph, vertex)
+        compiler = DeltaMethodCompiler(
+            interpreter,
+            margin_type=CriticalMarginType.CANDIDATE_TO_CANDIDATE,
+            c=c,
+            l=l,
+        )
+        unchanged_sample = graph.ballot_matrix[:2]
+        result = compiler.evaluate(unchanged_sample, unchanged_sample)
+        c_idx = graph.candidate_names.index(c)
+        l_idx = graph.candidate_names.index(l)
+
+        assert result.estimated_margin == pytest.approx(
+            vertex.tallies[c_idx] - vertex.tallies[l_idx]
+        )
+        assert result.gradient.shape == (3 * (1 << vertex.degree),)
+
+
 def test_memory_lite_wigm_edges_store_source_fpv_vectors():
     graph = build_synthetic_graph()
     seating_edges = [
@@ -201,6 +229,38 @@ def test_winner_prefix_indices_match_edgewise_accumulation():
     assert np.array_equal(first, expected)
     assert np.array_equal(cached, expected)
     assert cached is interpreter._prefix_cache
+    assert cached.dtype.itemsize == 1
+
+
+def test_cached_profile_masses_reproduce_rowwise_base_points():
+    graph = build_synthetic_graph()
+    vertex = next(
+        vertex
+        for layer in graph.layers
+        for vertex in layer
+        if vertex.degree >= 2
+    )
+    interpreter = VertexInterpreter(graph, vertex)
+    weights = interpreter.profile_wt_vec()
+
+    cached_point = interpreter.base_point(0, 1)
+    rowwise_point = interpreter.base_point(0, 1, wt_vec=weights)
+    assert np.allclose(cached_point, rowwise_point)
+
+    candidate_point = interpreter.candidate_base_point(0, 1)
+    expected_candidate_point = np.zeros(interpreter.shape, dtype=np.float64)
+    prefixes = interpreter.winner_prefix_indices(copy=False)
+    fpv = interpreter.current_fpv_vec(copy=False)
+    columns = np.where(fpv == 0, 1, 2)
+    np.add.at(expected_candidate_point, (prefixes, columns), weights)
+    assert np.allclose(candidate_point, expected_candidate_point)
+
+    mass, prefix_mass = interpreter.profile_mass_by_prefix_candidate(copy=False)
+    cached_mass, cached_prefix_mass = interpreter.profile_mass_by_prefix_candidate(
+        copy=False
+    )
+    assert mass is cached_mass
+    assert prefix_mass is cached_prefix_mass
 
 
 def test_seeded_basepoint_uses_unseeded_weights_for_transfer_recursion():

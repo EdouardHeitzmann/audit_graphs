@@ -350,15 +350,10 @@ class CobraQuotaCompilerV2(CobraCompilerV2Base):
         return w
 
     def _quota_base_point(self, interpreter: VertexInterpreter) -> NDArray[np.float64]:
-        weights = interpreter.profile_wt_vec()
-        fpv = interpreter.current_fpv_vec(copy=False)
-        prefixes = interpreter.winner_prefix_indices(copy=False)
-        columns = np.full(len(fpv), 2, dtype=np.int8)
-        columns[fpv == self.candidate] = self.candidate_column
-
-        point = np.zeros(interpreter.shape, dtype=np.float64)
-        np.add.at(point, (prefixes, columns), weights)
-        return point
+        return interpreter.candidate_base_point(
+            self.candidate,
+            self.candidate_column,
+        )
 
     def _quota_theta_key(
         self,

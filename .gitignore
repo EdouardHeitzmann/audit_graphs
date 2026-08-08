@@ -6,3 +6,5 @@ src/edouard/__pycache__/
 src/edouard/ranking_election/__pycache__/
 src/edouard/src/__pycache__/
 src/edouard/temp_data/
+.claude/
+.pytest_cache/

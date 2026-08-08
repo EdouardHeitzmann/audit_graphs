@@ -3,6 +3,7 @@ import textwrap
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.patches import Rectangle
+from matplotlib.transforms import ScaledTranslation
 from collections import defaultdict
 
 from .wigm_graphs.datatypes import EdgeAction
@@ -13,6 +14,7 @@ def _compute_layer_positions(
     vertical_spacing=1.5,
     plot_horizontal=False,
     contract_empty_layers=False,
+    visible_refs=None,
 ):
     """
     Compute layered positions.
@@ -27,7 +29,16 @@ def _compute_layer_positions(
     """
     positions = {}
 
-    max_layer_width = max((len(layer) for layer in graph.layers), default=1)
+    visible_refs = None if visible_refs is None else set(visible_refs)
+    visible_layers = [
+        [
+            vertex
+            for vertex in layer
+            if visible_refs is None or vertex.ref in visible_refs
+        ]
+        for layer in graph.layers
+    ]
+    max_layer_width = max((len(layer) for layer in visible_layers), default=1)
 
     if max_layer_width <= 1:
         layer_span = 0.0
@@ -39,7 +50,7 @@ def _compute_layer_positions(
 
     display_layer_idx = 0
 
-    for layer_idx, layer in enumerate(graph.layers):
+    for layer_idx, layer in enumerate(visible_layers):
         n = len(layer)
         if n == 0:
             continue
@@ -236,7 +247,7 @@ def _draw_edge_labels(
     wrap_width=10,
     offset=0.0,
     label_mode="literal",
-    parallel_label_spacing=0.45,
+    parallel_label_spacing=8.0,
     hidden_edge_refs=None,
 ):
     """
@@ -250,6 +261,8 @@ def _draw_edge_labels(
       - vertical edge: label at the midpoint
 
     Here "third" means position along the edge segment, not perpendicular offset.
+    ``parallel_label_spacing`` is measured in typographic points so simultaneous
+    labels remain separated even when a wide seeded layer expands the data axes.
     """
     label_edges = []
     parallel_groups = defaultdict(list)
@@ -295,13 +308,24 @@ def _draw_edge_labels(
         label_x = x1 + t * dx
         label_y = y1 + t * dy
 
-        label_offset = offset + parallel_offsets.get(edge.ref, 0.0)
-        if label_offset != 0.0:
+        if offset != 0.0:
             length = np.hypot(dx, dy)
             if length != 0:
                 nx, ny = -dy / length, dx / length
-                label_x += label_offset * nx
-                label_y += label_offset * ny
+                label_x += offset * nx
+                label_y += offset * ny
+
+        text_transform = ax.transData
+        parallel_offset = parallel_offsets.get(edge.ref, 0.0)
+        if parallel_offset != 0.0:
+            length = np.hypot(dx, dy)
+            if length != 0:
+                nx, ny = -dy / length, dx / length
+                text_transform = text_transform + ScaledTranslation(
+                    nx * parallel_offset / 72.0,
+                    ny * parallel_offset / 72.0,
+                    ax.figure.dpi_scale_trans,
+                )
 
         label = _edge_label(graph, edge, mode=label_mode)
         label = _wrap_edge_label_text(label, width=wrap_width)
@@ -310,6 +334,7 @@ def _draw_edge_labels(
             label_x,
             label_y,
             label,
+            transform=text_transform,
             fontsize=font_size,
             ha="center",
             va="center",
@@ -463,7 +488,7 @@ def plot_wigm_graph(
     ypad=0.75,
     lam_restriction=None,
     plot_horizontal=False,
-    seeded_build=False,
+    seeded_build=None,
     parallel_label_spacing=None,
     highlight_natural_edges=False,
     highlight_natural_path=False,
@@ -475,6 +500,9 @@ def plot_wigm_graph(
       - each layer has a fixed y-value
       - vertices in each layer are equally spaced horizontally
       - layers are centered at x=0
+
+    ``seeded_build=None`` auto-detects seeded graph constructors. Pass an
+    explicit boolean only to override that behavior for ordinary WIGM graphs.
     """
     if not any(len(layer) > 0 for layer in graph.layers):
         print("No nodes to plot")
@@ -486,16 +514,12 @@ def plot_wigm_graph(
         BlackBoxWIGMGraphConstructor = ()
 
     is_black_box_graph = isinstance(graph, BlackBoxWIGMGraphConstructor)
+    if seeded_build is None:
+        seeded_build = bool(getattr(graph, "used_seeded_build", False))
+    else:
+        seeded_build = bool(seeded_build)
     if is_black_box_graph:
         seeded_build = True
-
-    positions = _compute_layer_positions(
-        graph,
-        horizontal_spacing=horizontal_spacing,
-        vertical_spacing=vertical_spacing,
-        plot_horizontal=plot_horizontal,
-        contract_empty_layers=seeded_build,
-    )
 
     visible_refs = _visible_refs(graph, lam_restriction=lam_restriction)
     hidden_edge_refs = set()
@@ -520,6 +544,15 @@ def plot_wigm_graph(
     if not visible_refs:
         print("No vertices satisfy the lam_restriction")
         return
+
+    positions = _compute_layer_positions(
+        graph,
+        horizontal_spacing=horizontal_spacing,
+        vertical_spacing=vertical_spacing,
+        plot_horizontal=plot_horizontal,
+        contract_empty_layers=seeded_build,
+        visible_refs=visible_refs,
+    )
 
     fig, ax = plt.subplots(figsize=figsize)
     highlighted_edge_refs = (
@@ -606,7 +639,7 @@ def plot_wigm_graph(
 
     if label_edges is not None:
         if parallel_label_spacing is None:
-            parallel_label_spacing = max(0.45, 0.045 * font_size)
+            parallel_label_spacing = max(8.0, 1.25 * (font_size - 1))
 
         _draw_edge_labels(
             ax,

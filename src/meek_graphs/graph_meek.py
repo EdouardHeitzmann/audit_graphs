@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections import defaultdict
 from functools import lru_cache
 from itertools import combinations
 from typing import Any, Iterable
@@ -895,6 +896,8 @@ class MeekGraphConstructor(AbstractGraphConstructor):
         self.layer_index = []
         self.edge_by_ref = {}
         self.edge_lookup = {}
+        self._outgoing_edge_index = defaultdict(list)
+        self._incoming_edge_index = defaultdict(list)
         self.stack.clear()
         self.enqueued = set()
         self._deferred_enqueue_refs = None
@@ -1079,6 +1082,8 @@ class MeekGraphConstructor(AbstractGraphConstructor):
         self.layer_index = []
         self.edge_by_ref = {}
         self.edge_lookup = {}
+        self._outgoing_edge_index = defaultdict(list)
+        self._incoming_edge_index = defaultdict(list)
         self.stack.clear()
         self.enqueued = set()
         self._deferred_enqueue_refs = None

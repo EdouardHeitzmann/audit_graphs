@@ -2,11 +2,17 @@ from __future__ import annotations
 
 from collections import defaultdict
 from dataclasses import dataclass
+from types import SimpleNamespace
 
 import numpy as np
 import pytest
+import matplotlib
 
-from src.election_graphs.datatypes import EdgeAction
+matplotlib.use("Agg")
+import matplotlib.pyplot as plt
+
+from src.election_graphs.datatypes import EdgeAction, VertexRef
+from src.plotting import plot_wigm_graph
 from src.wigm_graphs.graph_wigm import WIGMGraphConstructor
 
 
@@ -236,10 +242,11 @@ def test_seeded_very_strong_simultaneous_walk_waits_until_candidate_is_forced():
                 [1, 2, 3, -127],
                 [2, 3, -127, -127],
                 [3, -127, -127, -127],
+                [-127, -127, -127, -127],
             ],
             dtype=np.int8,
         ),
-        wt_vec=np.array([1200, 900, 800, 1097], dtype=np.float64),
+        wt_vec=np.array([1200, 900, 800, 700, 397], dtype=np.float64),
     )
     constructor = WIGMGraphConstructor(
         profile,
@@ -249,11 +256,7 @@ def test_seeded_very_strong_simultaneous_walk_waits_until_candidate_is_forced():
         memory_lite=True,
     )
 
-    constructor.seeded_build(
-        very_strong_candidates={0, 1},
-        strong_candidates={2},
-        weak_candidates={3},
-    )
+    constructor.seeded_build()
 
     connector = constructor.vertex(constructor._seed_connector_ref)
     seated_edges = [edge_ref for edge_ref in connector.key.seated_at if edge_ref is not None]
@@ -264,6 +267,84 @@ def test_seeded_very_strong_simultaneous_walk_waits_until_candidate_is_forced():
     assert seating_edges[1].src == seating_edges[0].dst
     assert seating_edges[0].dst != seating_edges[1].dst
     assert all(edge.action == EdgeAction.FORCE_ELECT for edge in seating_edges)
+    assert constructor.seed_very_strong_candidates == frozenset({0, 1})
+    assert constructor.seed_strong_candidates == frozenset({2})
+    assert constructor.seed_weak_candidates == frozenset({3})
+
+
+def test_seeded_plot_auto_detects_build_and_keeps_simultaneous_labels_apart(
+    monkeypatch,
+):
+    profile = MatrixProfile(
+        candidates=["Very0", "Very1", "Strong", "Weak"],
+        ballot_matrix=np.array(
+            [
+                [0, 2, 3, -127],
+                [1, 2, 3, -127],
+                [2, 3, -127, -127],
+                [3, -127, -127, -127],
+            ],
+            dtype=np.int8,
+        ),
+        wt_vec=np.array([1200, 900, 300, 100], dtype=np.float64),
+    )
+    constructor = WIGMGraphConstructor(
+        profile,
+        m=3,
+        LAM=50,
+        simultaneous=True,
+        memory_lite=True,
+    )
+    constructor.seeded_build(
+        already_elected=[["Very0", "Very1"]],
+        strong_candidates={2},
+        weak_candidates={3},
+        diagnostics=False,
+    )
+
+    # A wide seed layer reproduces the visual compression that used to make a
+    # fixed data-coordinate offset disappear.
+    seed_layer = constructor._seed_refs[0].layer
+    constructor.layers[seed_layer].extend(
+        SimpleNamespace(
+            ref=VertexRef(seed_layer, local_id),
+            color=0,
+            tightest_margin=None,
+        )
+        for local_id in range(1, 201)
+    )
+    monkeypatch.setattr(plt, "show", lambda: None)
+
+    plot_wigm_graph(
+        constructor,
+        figsize=(10, 4),
+        font_size=10,
+        plot_horizontal=True,
+    )
+
+    figure = plt.gcf()
+    axis = figure.axes[0]
+    figure.canvas.draw()
+    renderer = figure.canvas.get_renderer()
+    simultaneous_labels = {
+        text.get_text(): text
+        for text in axis.texts
+        if text.get_text() in {"+ Very0", "+ Very1"}
+    }
+    assert set(simultaneous_labels) == {"+ Very0", "+ Very1"}
+    centers = [
+        text.get_window_extent(renderer).y0
+        + text.get_window_extent(renderer).height / 2.0
+        for text in simultaneous_labels.values()
+    ]
+    assert abs(centers[0] - centers[1]) >= 8.0
+
+    # No explicit seeded_build=True argument was needed to draw the connector.
+    assert any(
+        patch.get_facecolor()[:3] == (0.0, 0.0, 0.0)
+        for patch in axis.patches
+    )
+    plt.close("all")
 
 
 def test_seeded_build_reports_phase_and_memory_diagnostics(capsys):
@@ -286,6 +367,7 @@ def test_seeded_build_reports_phase_and_memory_diagnostics(capsys):
     )
 
     constructor.seeded_build(
+        very_strong_candidates=(),
         strong_candidates={0},
         weak_candidates={1},
         diagnostic_interval=1,
@@ -310,11 +392,13 @@ def test_seeded_build_diagnostics_can_be_disabled(capsys):
     constructor = WIGMGraphConstructor(profile, m=1, LAM=0)
 
     constructor.seeded_build(
+        very_strong_candidates=(),
         strong_candidates={0},
         weak_candidates={1},
         diagnostics=False,
     )
 
+    assert constructor.simultaneous is True
     assert "[seeded_build:" not in capsys.readouterr().out
 
 
@@ -385,6 +469,7 @@ def test_seeded_very_strong_non_simultaneous_picks_highest_forced_first():
             very_strong_candidates={0, 1},
             strong_candidates={2},
             weak_candidates={3},
+            simultaneous=False,
         )
 
     connector = constructor.vertex(constructor._seed_connector_ref)
@@ -395,6 +480,7 @@ def test_seeded_very_strong_non_simultaneous_picks_highest_forced_first():
     ]
 
     assert [edge.candidate for edge in seating_edges] == [0, 1]
+    assert constructor.simultaneous is False
     assert seating_edges[0].src == constructor.root_ref
     assert seating_edges[1].src == seating_edges[0].dst
 

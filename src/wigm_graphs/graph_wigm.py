@@ -555,7 +555,7 @@ class WIGMGraphConstructor(AbstractGraphConstructor):
             # Optional election edges for candidates within LAM of highest tally.
             highest_tally = np.max(v.tallies)
             elimination_margin_floor = float(max(highest_tally - self.quota, 0.0))
-            if highest_tally > self.quota - self.LAM:
+            if highest_tally >= self.quota - self.LAM:
                 edge_fpv_vec = self._edge_fpv_vec_from_cache(cache)
                 if self.simultaneous:
                     group_iter = self._election_groups_within_lam(v, forced=False)
@@ -806,6 +806,7 @@ class WIGMGraphConstructor(AbstractGraphConstructor):
         very_strong_candidates: Iterable[int] | None = None,
         already_elected: Sequence[Sequence[int | str]] | None = None,
         transfer_values: Sequence[Sequence[float]] | None = None,
+        simultaneous: bool = True,
         diagnostics: bool = True,
         diagnostic_interval: int = 1000,
     ):
@@ -815,10 +816,17 @@ class WIGMGraphConstructor(AbstractGraphConstructor):
         A seed excludes every weak and already-elected candidate from hopefuls,
         includes every strong candidate in hopefuls, and chooses any subset of
         the remaining candidates as hopeful. Seeds with too few hopeful
-        candidates to fill the remaining seats are skipped.
+        candidates to fill the remaining seats are skipped. When
+        ``very_strong_candidates`` is omitted, candidates above ``quota + LAM``
+        are detected and pre-seated iteratively, with each surplus transfer
+        applied before detecting the next candidate. Pass an empty iterable to
+        disable automatic very-strong detection. Seeded construction uses
+        simultaneous election semantics by default; pass ``simultaneous=False``
+        to request sequential semantics explicitly.
         """
         if diagnostic_interval <= 0:
             raise ValueError("diagnostic_interval must be positive.")
+        self.simultaneous = bool(simultaneous)
 
         weak = (
             None
@@ -830,19 +838,30 @@ class WIGMGraphConstructor(AbstractGraphConstructor):
             if strong_candidates is None
             else frozenset(int(candidate) for candidate in strong_candidates)
         )
-        very_strong = frozenset(
-            int(candidate)
-            for candidate in (
-                () if very_strong_candidates is None else very_strong_candidates
+        auto_detect_very_strong = (
+            very_strong_candidates is None
+            and already_elected is None
+            and transfer_values is None
+        )
+        requested_very_strong = (
+            None
+            if auto_detect_very_strong
+            else frozenset(
+                int(candidate)
+                for candidate in (
+                    ()
+                    if very_strong_candidates is None
+                    else very_strong_candidates
+                )
             )
         )
 
-        if very_strong and already_elected is not None:
+        if requested_very_strong and already_elected is not None:
             raise ValueError(
                 "very_strong_candidates cannot currently be combined with "
                 "already_elected; use one pre-seating mechanism at a time."
             )
-        if very_strong and transfer_values is not None:
+        if requested_very_strong and transfer_values is not None:
             raise ValueError(
                 "transfer_values cannot currently be combined with "
                 "very_strong_candidates."
@@ -853,7 +872,11 @@ class WIGMGraphConstructor(AbstractGraphConstructor):
             candidate
             for group in elected_groups
             for candidate in group
-        ) | very_strong
+        ) | (
+            frozenset()
+            if requested_very_strong is None
+            else requested_very_strong
+        )
         self._validate_seed_candidate_sets(
             frozenset() if weak is None else weak,
             frozenset() if strong is None else strong,
@@ -869,9 +892,15 @@ class WIGMGraphConstructor(AbstractGraphConstructor):
                 ),
             )
 
-        if very_strong:
+        preseeded_very_strong = frozenset()
+        if auto_detect_very_strong or requested_very_strong:
             seeded_wt_vec, seated_at, elected_groups = (
-                self._initialize_very_strong_seed(very_strong)
+                self._initialize_very_strong_seed(requested_very_strong)
+            )
+            preseeded_very_strong = frozenset(
+                candidate
+                for group in elected_groups
+                for candidate in group
             )
             already_elected_set = frozenset(
                 candidate
@@ -927,7 +956,7 @@ class WIGMGraphConstructor(AbstractGraphConstructor):
 
         self._validate_seed_candidate_sets(weak, strong, already_elected_set)
         self.used_seeded_build = True
-        self.seed_very_strong_candidates = already_elected_set & very_strong
+        self.seed_very_strong_candidates = preseeded_very_strong
         self.seed_strong_candidates = strong
         self.seed_weak_candidates = weak
         self.seed_frozen_mentions = frozen_mentions
@@ -1137,7 +1166,7 @@ class WIGMGraphConstructor(AbstractGraphConstructor):
 
     def _initialize_very_strong_seed(
         self,
-        very_strong: frozenset[int],
+        very_strong: frozenset[int] | None,
     ) -> tuple[
         NDArray[np.float64],
         tuple[EdgeRef | None, ...],
@@ -1150,7 +1179,12 @@ class WIGMGraphConstructor(AbstractGraphConstructor):
         seated_at: list[EdgeRef | None] = [None] * self.m
         seat_idx = 0
         anchor_ref: VertexRef | None = None
-        remaining = set(very_strong)
+        auto_detect = very_strong is None
+        remaining = (
+            set(range(self.n_candidates))
+            if auto_detect
+            else set(very_strong)
+        )
         elected_groups: list[tuple[int, ...]] = []
 
         while remaining and seat_idx < self.m:
@@ -1240,7 +1274,7 @@ class WIGMGraphConstructor(AbstractGraphConstructor):
             child.tallies = self._compute_tallies_from_fpv(fpv_vec, wt_vec)
             child.next_margin = self._next_margin_for_vertex(child, wt_vec)
 
-        if remaining:
+        if remaining and not auto_detect:
             warnings.warn(
                 "Some very_strong_candidates were not pre-seated because their "
                 f"current tallies did not force election: {sorted(remaining)}.",
@@ -1556,6 +1590,8 @@ class WIGMGraphConstructor(AbstractGraphConstructor):
         self.layer_index = []
         self.edge_by_ref = {}
         self.edge_lookup = {}
+        self._outgoing_edge_index = defaultdict(list)
+        self._incoming_edge_index = defaultdict(list)
         self.stack.clear()
         self.enqueued = set()
         self._deferred_enqueue_refs = None

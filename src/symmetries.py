@@ -745,6 +745,8 @@ def quotient_by(graph, cand_list=None):
         for edge_layer in new_edge_layers
         for edge in edge_layer
     }
+    if hasattr(quotient, "_rebuild_edge_adjacency_indexes"):
+        quotient._rebuild_edge_adjacency_indexes()
     quotient.root_ref = root_ref
 
     quotient.layer_index = []
