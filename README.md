@@ -1,34 +1,26 @@
 # STV Audit Graphs
 
 Research code for graph-based Risk-Limiting Audits of Single Transferable Vote
-elections. Audit graphs enumerate the election paths an STV tabulation could
-plausibly follow if fewer than a fixed Margin of Insecurity worth of votes were
-misrecorded; auditing the graph's escape edges yields an RLA for the reported
-outcome.
+elections, accompanying the writeup in `writeup/`. Audit graphs enumerate the
+election paths an STV tabulation could plausibly follow if fewer than a fixed
+Margin of Insecurity worth of votes were misrecorded; auditing the graph's
+escape edges yields an RLA for the reported outcome.
 
-## Layout
+## Start here: the demo notebooks
 
-- `src/election_graphs/` — abstract layered-graph constructor, shared
-  datatypes, and profile utilities (numpy-profile loading and condensing,
-  maximum possible tallies, strong/weak candidate search).
-- `src/wigm_graphs/` — plausible-graph constructors for WIGM STV, including
-  batch elimination (seeded builds).
-- `src/test_processes/` — the audit machinery: edge-local compilers (test
-  processes), vertex interpreters, the mismatch and Delta-method drivers, the
-  symbolic margin equations backing the Delta method, and the implicit ballot
-  sampler.
-- `src/margin_search/` — standalone utility searching for the largest Margin
-  of Insecurity admitting a coherent plausible graph.
-- `src/replication/` — end-to-end scripts re-creating the paper's results
-  table.
-- `src/plotting.py` — graph visualization for the writeup's figures.
-- `data/` — votekit-format ballot profiles for the elections in the results
-  table, organized by source jurisdiction with their licenses. See
-  `data/README.md` for provenance.
-- `notebooks/` — exploratory and results notebooks.
-- `tests/` — pytest suite.
+Two notebooks walk through the whole pipeline step by step:
 
-## Reproducing the results
+- [`notebooks/mismatch.ipynb`](notebooks/mismatch.ipynb) — the small-election
+  path: build a plausible audit graph by depth-first search (Shellharbour
+  Ward D 2024), plot it, then certify it with both the mismatch-based and
+  Delta-method audit drivers. Runs in seconds.
+- [`notebooks/victoria_v2.ipynb`](notebooks/victoria_v2.ipynb) — the
+  large-election path: batch-elimination (seeded) construction for the 2025
+  Victorian Senate election (65 candidates, 4.1M ballots), a plot of the
+  abridged graph, a certifying Delta-method audit at 0.5% of ballots, and a
+  bounded mismatch-driver demonstration.
+
+## Reproducing the results table
 
 Set up an environment and run the tests:
 
@@ -37,35 +29,56 @@ uv venv && uv pip install numpy pandas scipy sympy matplotlib pytest
 .venv/bin/python -m pytest tests/
 ```
 
-Re-create the first six rows of the results table (Section 3.4 of the
-writeup) — graph construction at the table's Margin of Insecurity, 2% noised
-CVRs, risk level 5%:
-
-```sh
-.venv/bin/python -m src.replication.reproduce_table_asns
-```
-
-Pass `--rows 1 3` to run a subset, and see `--help` for the audit parameters.
-The whole table (all 22 populated rows, with each row's graph construction
-method, skipping the mismatch audits the table marks X) is re-created by the
-long-running
+Re-create the full results table of Section 3.4 — every populated row, at its
+maximal coherent Margin of Insecurity, with the graph construction method the
+table's footnotes declare (2% noised CVRs, risk level 5%):
 
 ```sh
 .venv/bin/python -m src.replication.reproduce_full_table_asns
 ```
 
-Individual elections can also be studied directly with the statistics
-gatherer, e.g.:
+Row selection and the audit parameters are configurable — `--rows 1 3` runs a
+subset (rows are 1-indexed in table order), and `--help` lists the rest. Rows
+whose Mismatch ASN the table marks X skip the mismatch audit by default, since
+those audits run to their sample cap. The Australian Senate rows are by far
+the most expensive; everything through Minneapolis finishes in hours on a
+desktop.
+
+The Mismatch ASN averages 10 simulated audits (all must certify below half the
+ballots); the Delta ASN is the smallest sample size certifying at least 9 of
+10 seeded trials. Both are seed-dependent statistics, so reproduced values can
+differ slightly from the table. `src/replication/reproduce_table_asns.py` is a
+smaller variant covering the table's first six rows.
+
+Individual elections can be studied directly with the statistics gatherer,
+which exposes the same protocol for one profile at an arbitrary margin:
 
 ```sh
 .venv/bin/python -m src.replication.driver_statistics \
     data/scot-elex/eilean_siar_2022_ward5.csv --enforced-moi 141
 ```
 
-The Mismatch ASN averages 10 simulated audits (all must certify below half the
-ballots); the Delta ASN is the smallest sample size certifying at least 9 of
-10 seeded trials. Both are seed-dependent statistics, so reproduced values can
-differ slightly from the table.
+## Layout
+
+- `src/election_graphs/` — abstract layered-graph constructor, shared
+  datatypes, and profile utilities (numpy-profile loading and condensing,
+  maximum possible tallies, strong/weak candidate search).
+- `src/wigm_graphs/` — plausible-graph constructors for WIGM STV: the plain
+  DFS constructor and the batch-elimination (seeded) subclass.
+- `src/test_processes/` — the audit machinery: edge-local compilers (test
+  processes), vertex interpreters, the mismatch and Delta-method drivers, the
+  shared escape-margin selection, the symbolic margin equations backing the
+  Delta method, and the implicit ballot sampler.
+- `src/margin_search/` — heap-based search for the largest Margin of
+  Insecurity admitting a coherent plausible graph.
+- `src/replication/` — the end-to-end scripts described above.
+- `src/plotting.py` — graph visualization.
+- `data/` — votekit-format ballot profiles for the elections in the results
+  table, organized by source jurisdiction with their licenses. See
+  `data/README.md` for provenance and the write-in preprocessing protocols.
+- `writeup/` — the paper's LaTeX sources; the definitions there are the
+  source of truth for the code.
+- `tests/` — pytest suite.
 
 Profiles are loaded with the vendored numpy-profile reader in
 `src/election_graphs/numpy_profile.py` (Scottish election csv format, as
