@@ -1,0 +1,234 @@
+\begin{figure}[h]
+\centering
+
+% Reduce the gap above and below the caption.
+\setlength{\abovecaptionskip}{2pt}
+\setlength{\belowcaptionskip}{0pt}
+
+% Shrink only when needed; do not enlarge the diagram to \linewidth.
+\begin{adjustbox}{max width=\linewidth,center}
+\begin{tikzpicture}[
+    x=3.9cm,
+    y=1.05cm,
+    vertex/.style={
+        draw,
+        rounded corners=2pt,
+        fill=white,
+        align=center,
+        inner xsep=3pt,
+        inner ysep=1.5pt,
+        outer sep=0pt,
+        font=\scriptsize
+    },
+    edge/.style={
+        -{Stealth[length=4pt,width=4pt]},
+        thin
+    },
+    edge label/.style={
+        fill=white,
+        inner sep=0.5pt,
+        outer sep=0pt,
+        font=\scriptsize
+    },
+    layer label/.style={
+    font=\small\bfseries,
+    anchor=south,
+    inner sep=0pt,
+    outer sep=0pt,
+    yshift=6pt
+}
+]
+
+\node[layer label] at (0,4.35) {Round $0$};
+\node[layer label] at (1,4.35) {Round $1$};
+\node[layer label] at (2,4.35) {Round $2$};
+\node[layer label] at (3,4.35) {Round $3$};
+
+\node[vertex] (root) at (0,0)
+    {$\mathcal H=\{0,1,2\}$\\$\mathcal W=\varnothing$};
+
+\node[vertex] (n01) at (1,3.75)
+    {$\mathcal H=\{0,1\}$\\$\mathcal W=\varnothing$};
+
+\node[vertex] (s2) at (1,2.25)
+    {$\mathcal H=\{0,1\}$\\$\mathcal W=(2)$};
+
+\node[vertex] (n02) at (1,0.75)
+    {$\mathcal H=\{0,2\}$\\$\mathcal W=\varnothing$};
+
+\node[vertex] (s1) at (1,-0.75)
+    {$\mathcal H=\{0,2\}$\\$\mathcal W=(1)$};
+
+\node[vertex] (n12) at (1,-2.25)
+    {$\mathcal H=\{1,2\}$\\$\mathcal W=\varnothing$};
+
+\node[vertex] (s0) at (1,-3.75)
+    {$\mathcal H=\{1,2\}$\\$\mathcal W=(0)$};
+
+\node[vertex] (h0w1) at (2,4)
+    {$\mathcal H=\{0\}$\\$\mathcal W=(1)$};
+
+\node[vertex] (h1w0) at (2,3)
+    {$\mathcal H=\{1\}$\\$\mathcal W=(0)$};
+
+\node[vertex] (h0n) at (2,2)
+    {$\mathcal H=\{0\}$\\$\mathcal W=\varnothing$};
+
+\node[vertex] (h0w2) at (2,1)
+    {$\mathcal H=\{0\}$\\$\mathcal W=(2)$};
+
+\node[vertex] (h2w0) at (2,0)
+    {$\mathcal H=\{2\}$\\$\mathcal W=(0)$};
+
+\node[vertex] (h1n) at (2,-1)
+    {$\mathcal H=\{1\}$\\$\mathcal W=\varnothing$};
+
+\node[vertex] (h2n) at (2,-2)
+    {$\mathcal H=\{2\}$\\$\mathcal W=\varnothing$};
+
+\node[vertex] (h2w1) at (2,-3)
+    {$\mathcal H=\{2\}$\\$\mathcal W=(1)$};
+
+\node[vertex] (h1w2) at (2,-4)
+    {$\mathcal H=\{1\}$\\$\mathcal W=(2)$};
+
+\node[vertex] (z0) at (3,2.5)
+    {$\mathcal H=\varnothing$\\$\mathcal W=(0)$};
+
+\node[vertex] (z1) at (3,0)
+    {$\mathcal H=\varnothing$\\$\mathcal W=(1)$};
+
+\node[vertex] (z2) at (3,-2.5)
+    {$\mathcal H=\varnothing$\\$\mathcal W=(2)$};
+
+\draw[edge]
+    (root)
+    --
+    node[edge label,sloped,above] {$\mathrm{x}\,2$}
+    (n01);
+
+\draw[edge]
+    (root)
+    --
+    node[edge label,sloped,above] {$+\,2$}
+    (s2);
+
+\draw[edge]
+    (root)
+    --
+    node[edge label,sloped,above] {$\mathrm{x}\,1$}
+    (n02);
+
+\draw[edge]
+    (root)
+    --
+    node[edge label,sloped,above] {$+\,1$}
+    (s1);
+
+\draw[edge]
+    (root)
+    --
+    node[edge label,sloped,above] {$\mathrm{x}\,0$}
+    (n12);
+
+\draw[edge]
+    (root)
+    --
+    node[edge label,sloped,above] {$+\,0$}
+    (s0);
+
+\draw[edge]
+    (n01)
+    --
+    node[edge label,sloped,above,pos=0.25] {$+\,1$}
+    (h0w1);
+
+\draw[edge]
+    (n01)
+    --
+    node[edge label,sloped,above,pos=0.25] {$+\,0$}
+    (h1w0);
+
+\draw[edge]
+    (n01)
+    --
+    node[edge label,sloped,above,pos=0.25] {$\mathrm{x}\,1$}
+    (h0n);
+
+\draw[edge]
+    (n01)
+    --
+    node[edge label,sloped,above,pos=0.25] {$\mathrm{x}\,0$}
+    (h1n);
+
+\draw[edge]
+    (n02)
+    --
+    node[edge label,sloped,above,pos=0.25] {$+\,2$}
+    (h0w2);
+
+\draw[edge]
+    (n02)
+    --
+    node[edge label,sloped,above,pos=0.25] {$+\,0$}
+    (h2w0);
+
+\draw[edge]
+    (n02)
+    --
+    node[edge label,sloped,above,pos=0.25] {$\mathrm{x}\,2$}
+    (h0n);
+
+\draw[edge]
+    (n02)
+    --
+    node[edge label,sloped,above,pos=0.25] {$\mathrm{x}\,0$}
+    (h2n);
+
+\draw[edge]
+    (n12)
+    --
+    node[edge label,sloped,above,pos=0.25] {$+\,1$}
+    (h2w1);
+
+\draw[edge]
+    (n12)
+    --
+    node[edge label,sloped,above,pos=0.25] {$+\,2$}
+    (h1w2);
+
+\draw[edge]
+    (n12)
+    --
+    node[edge label,sloped,above,pos=0.25] {$\mathrm{x}\,1$}
+    (h2n);
+
+\draw[edge]
+    (n12)
+    --
+    node[edge label,sloped,above,pos=0.25] {$\mathrm{x}\,2$}
+    (h1n);
+
+\draw[edge]
+    (h0n)
+    --
+    node[edge label,sloped,above] {$+\,0$}
+    (z0);
+
+\draw[edge]
+    (h1n)
+    --
+    node[edge label,sloped,above] {$+\,1$}
+    (z1);
+
+\draw[edge]
+    (h2n)
+    --
+    node[edge label,sloped,above] {$+\,2$}
+    (z2);
+
+\end{tikzpicture}
+\end{adjustbox}
+
+\caption{The universal audit graph $\Omega(3,1)$.}
+\end{figure}

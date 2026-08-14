@@ -323,29 +323,6 @@ class VertexInterpreter:
         direction.flat[minus_index] -= 1.0
         return direction
 
-    def optimize(
-        self,
-        base_point: NDArray[np.float64],
-        direction: NDArray[np.float64] | ThetaKey,
-        radius: float,
-        **kwargs: Any,
-    ):
-        """Call ``partial_optimizer.minimize_partial`` for this graph quota."""
-        from src.optimizers.partial_optimizer import minimize_partial
-
-        dense_direction = (
-            self.theta_from_key(direction)
-            if _is_theta_key(direction)
-            else np.asarray(direction, dtype=np.float64)
-        )
-        return minimize_partial(
-            base_point,
-            dense_direction,
-            radius,
-            float(self.graph.quota),
-            **kwargs,
-        )
-
     def profile_wt_vec(self) -> NDArray[np.float64]:
         """
         Return original profile row weights for t-coordinate basepoints.
@@ -358,39 +335,6 @@ class VertexInterpreter:
         if hasattr(self.graph, "_unseeded_root_wt_vec"):
             return np.asarray(self.graph._unseeded_root_wt_vec, dtype=np.float64)
         return np.asarray(self.graph.root_wt_vec, dtype=np.float64)
-
-    def profile_theta_impacts(
-        self,
-        c: int | str,
-        l: int | str,
-        radius: float,
-        **optimizer_kwargs: Any,
-    ) -> dict[ThetaKey, Any]:
-        """
-        Optimize every distinct projected profile-row discrepancy.
-
-        The returned keys are canonical theta keys:
-        ``(plus_flat_index, minus_flat_index)``. Multiple concrete ballot/CVR
-        row pairs can collapse to the same key.
-        """
-        base_point = self.base_point(c, l)
-        coords = sorted(
-            set(self.profile_coordinates(c, l)),
-            key=lambda coord: (coord.winner_prefix, coord.column),
-        )
-        impacts = {}
-        for ballot_coord in coords:
-            for cvr_coord in coords:
-                theta_key = self.theta_key_from_coordinates(ballot_coord, cvr_coord)
-                if theta_key[0] == theta_key[1]:
-                    continue
-                impacts[theta_key] = self.optimize(
-                    base_point,
-                    theta_key,
-                    radius,
-                    **optimizer_kwargs,
-                )
-        return impacts
 
     def simultaneous_dead_rows(self) -> tuple[int, ...]:
         """

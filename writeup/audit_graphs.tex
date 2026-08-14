@@ -1,0 +1,79 @@
+% This is samplepaper.tex, a sample chapter demonstrating the
+% LLNCS macro package for Springer Computer Science proceedings;
+% Version 2.21 of 2022/01/12
+%
+\documentclass[runningheads]{llncs}
+%
+\usepackage[T1]{fontenc}
+% T1 fonts will be used to generate the final print and online PDFs,
+% so please use T1 fonts in your manuscript whenever possible.
+% Other font encondings may result in incorrect characters.
+\usepackage{amssymb} 
+\usepackage{amsmath}
+\usepackage{mathrsfs}
+\usepackage{hyperref}
+
+\usepackage{tikz}
+\usepackage{float}
+\usepackage{adjustbox}
+\usepackage{multirow}
+\usepackage{makecell}
+\usetikzlibrary{arrows.meta}
+%
+\usepackage{graphicx}
+\graphicspath{graphics/}
+% Used for displaying a sample figure. If possible, figure files should
+% be included in EPS format.
+%
+% If you use the hyperref package, please uncomment the following two lines
+% to display URLs in blue roman font according to Springer's eBook style:
+%\usepackage{color}
+%\renewcommand\UrlFont{\color{blue}\rmfamily}
+%\urlstyle{rm}
+%
+\newcommand{\pjs}[1]{\textcolor{blue}{\textsc{Pjs:} #1}}
+\begin{document}
+%
+\title{STV Audit Graphs: \\ A Visual Tool to Measure Election Stability}
+%
+\titlerunning{STV Audit Graphs}
+% If the paper title is too long for the running head, you can set
+% an abbreviated paper title here
+%
+%\author{First Author\inst{1}\orcidID{0000-1111-2222-3333}% \and
+%Second Author\inst{2,3}\orcidID{1111-2222-3333-4444} \and
+%Third Author\inst{3}\orcidID{2222--3333-4444-5555}}
+%
+\author{Edouard Heitzmann\inst{1}\orcidID{0009-0004-6410-7832}}
+\authorrunning{E. Heitzmann}
+% First names are abbreviated in the running head.
+% If there are more than two authors, 'et al.' is used.
+%
+\institute{Department of Mathematics, University of Colorado in Boulder \email{edouard.heitzmann@colorado.edu}}
+%
+\maketitle              % typeset the header of the contribution
+%
+\begin{abstract}
+The Single Transferable Vote (STV) is an algorithmic election rule. Round by round, a profile of ranked-choice ballots is reinterpreted to determine which decision to make next, and candidates are seated or eliminated until a full winner set emerges. This algorithmic nature makes STV theoretically more brittle than other elections rules: uncertainty about an early round of the election might percolate irreversibly into the rest. For this reason, a generalized non-trivial Risk-Limiting Audit (RLA) framework has remained elusive for STV. Such a framework must concoct a set of null hypotheses, or assertions, whose rejection would bound the probability that the outcome of the election was incorrectly reported. We present audit graphs as a solution to design the assertions needed for RLAs of arbitrary STV elections, as well as quantitatively describe the uncertainty (or lack thereof) of their outcomes. These audit graphs explore election paths that are ``close'' to the recorded one by considering the alternative decisions the STV algorithm might have made if a small number of ballots were perturbed.
+
+\keywords{Single Transferable Vote  \and Risk-Limiting Audit \and Margin of Victory.}
+\end{abstract}
+
+\input{sections/introduction.tex}
+\input{sections/construction.tex}
+\input{sections/applications.tex}
+\input{sections/discussion.tex}
+
+\begin{credits}
+\subsubsection{\ackname} I am deeply grateful to Damjan Vukcevic, Michelle Blom, Peter Stuckey, and Vanessa Teague for their hospitality and generosity in inviting me to visit Monash University for 6 weeks in June of 2026. I further thank Moon Duchin and the Data and Democracy Lab for funding my research for a formative semester in the Fall of 2025, and I thank Andrew Conway for publishing Australian CVR data as part of the ConcreteSTV project.
+\end{credits}
+
+\input{sections/appendix.tex}
+%
+% ---- Bibliography ----
+\bibliographystyle{splncs04}
+\bibliography{bibliography.bib}
+%
+
+\end{document}
+

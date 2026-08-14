@@ -409,15 +409,6 @@ def test_delta_driver_implicit_sampler_is_without_replacement():
     assert len(np.unique(driver.sampler.sampled_serials)) == driver.sample_size
 
 
-def test_delta_driver_explicitly_defers_black_box_seeded_graphs():
-    class BlackBoxSeededGraph:
-        used_seeded_build = True
-        vertex_post_seed_tallies = {}
-
-    with pytest.raises(NotImplementedError, match="black-box seeded seatings"):
-        DeltaMethodAuditDriver(BlackBoxSeededGraph(), sample_size=2)
-
-
 def test_delta_driver_initializes_batch_seeded_mentions_compilers():
     graph, census = seeded_batch_case()
     driver = DeltaMethodAuditDriver(

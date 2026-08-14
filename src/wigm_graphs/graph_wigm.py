@@ -350,7 +350,37 @@ class WIGMGraphConstructor(AbstractGraphConstructor):
 
         margins: list[float] = []
 
-        if np.any(v.tallies > self.quota + self.MoI):
+        if self.simultaneous:
+            hopefuls = np.array(sorted(v.key.hopefuls), dtype=int)
+            if len(hopefuls) == 0:
+                return None
+            forced = bool(np.any(v.tallies[hopefuls] > self.quota + self.MoI))
+            if not forced and len(hopefuls) + v.degree == self.m:
+                return None
+
+            # New seating groups appear when a hopeful enters the plausible
+            # winner window [quota - MoI, quota + MoI] from either side, or
+            # (under seat scarcity) when a pairwise head-to-head gap between
+            # hopefuls stops exceeding MoI.
+            quota_gaps = np.abs(v.tallies[hopefuls] - self.quota)
+            margins.extend(float(gap) for gap in quota_gaps if gap > self.MoI)
+            hopeful_tallies = v.tallies[hopefuls]
+            pairwise_gaps = hopeful_tallies[:, None] - hopeful_tallies[None, :]
+            margins.extend(
+                float(gap)
+                for gap in np.unique(pairwise_gaps[pairwise_gaps > self.MoI])
+            )
+
+            lowest_tally = np.min(v.tallies[hopefuls])
+            elimination_margin_floor = float(
+                max(np.max(v.tallies) - self.quota, 0.0)
+            )
+            elimination_margins = np.maximum(
+                v.tallies[hopefuls] - lowest_tally,
+                elimination_margin_floor,
+            )
+            margins.extend(float(m) for m in elimination_margins if m > self.MoI)
+        elif np.any(v.tallies > self.quota + self.MoI):
             highest_tally = np.max(v.tallies)
             margins.extend(
                 float(highest_tally - tally)
@@ -410,9 +440,21 @@ class WIGMGraphConstructor(AbstractGraphConstructor):
     def _election_groups_within_moi(
         self,
         v: ElectionState,
-        *,
-        forced: bool,
     ) -> Iterable[tuple[int, ...]]:
+        """Enumerate the simultaneous seating groups DW(v) + W'.
+
+        The definite winner set DW(v) holds the hopefuls more than MoI above
+        quota; the plausible winner set W(v) holds those within MoI of quota.
+        One seating edge is proposed for every nonempty DW(v) union W' with
+        W' a subset of W(v), provided the group fits in the remaining seats.
+
+        Under seat scarcity -- more plausible winners than remaining seats --
+        the plausible edges are computed top-down: a maximal group (seating
+        every remaining seat) is excluded when some window candidate left
+        out of it beats one of its members by more than MoI, and every
+        group DW union S with S a subset of a surviving maximal group is
+        then plausible as well.
+        """
         if v.tallies is None:
             raise ValueError("Cannot choose election groups before tallies exist.")
 
@@ -424,40 +466,107 @@ class WIGMGraphConstructor(AbstractGraphConstructor):
         if len(hopefuls) == 0:
             return ()
 
-        highest_tally = float(np.max(v.tallies[hopefuls]))
-        within_quota = [
+        definite = tuple(
             int(candidate)
             for candidate in hopefuls
-            if v.tallies[candidate] >= self.quota - self.MoI
-        ]
+            if v.tallies[candidate] > self.quota + self.MoI
+        )
+        if len(definite) > remaining_seats:
+            return ()
 
-        if len(within_quota) > remaining_seats:
-            within_quota = [
-                candidate
-                for candidate in within_quota
-                if v.tallies[candidate] >= highest_tally - self.MoI
+        plausible = tuple(
+            int(candidate)
+            for candidate in hopefuls
+            if self.quota - self.MoI <= v.tallies[candidate] <= self.quota + self.MoI
+        )
+
+        max_extra = min(len(plausible), remaining_seats - len(definite))
+
+        if len(definite) + len(plausible) <= remaining_seats:
+            groups = []
+            for extra_size in range(0, max_extra + 1):
+                for extra in combinations(plausible, extra_size):
+                    group = tuple(sorted(definite + extra))
+                    if group:
+                        groups.append(group)
+            return tuple(groups)
+
+        groups_set: set[tuple[int, ...]] = set()
+        for maximal_extra in combinations(plausible, max_extra):
+            excluded_tallies = [
+                float(v.tallies[candidate])
+                for candidate in plausible
+                if candidate not in maximal_extra
             ]
-
-        required = frozenset()
-        if forced:
-            required = frozenset(
-                int(candidate)
-                for candidate in hopefuls
-                if v.tallies[candidate] > self.quota + self.MoI
+            member_min = min(
+                float(v.tallies[candidate])
+                for candidate in definite + maximal_extra
             )
-            if len(required) > remaining_seats:
-                return ()
+            if excluded_tallies and max(excluded_tallies) - member_min > self.MoI:
+                continue
+            for subset_size in range(0, max_extra + 1):
+                for subset in combinations(maximal_extra, subset_size):
+                    group = tuple(sorted(definite + subset))
+                    if group:
+                        groups_set.add(group)
 
-        max_group_size = min(len(within_quota), remaining_seats)
-        groups = []
-        for group_size in range(1, max_group_size + 1):
-            for group in combinations(within_quota, group_size):
-                group_set = frozenset(group)
-                if required and not required <= group_set:
-                    continue
-                groups.append(tuple(sorted(group)))
+        return tuple(sorted(groups_set))
 
-        return tuple(groups)
+    def _simultaneous_seating_margin(
+        self,
+        v: ElectionState,
+        group: tuple[int, ...],
+    ) -> float:
+        """Plausibility threshold of a simultaneous seating edge.
+
+        The edge is natural once every member reaches quota and every
+        non-member hopeful sits at or below it, so the base threshold is the
+        largest member shortfall below quota or non-member excess above it.
+        Under seat scarcity at that threshold, the group's best maximal
+        completion (adding the strongest excluded candidates until every
+        remaining seat is filled) must also survive head-to-head, so the
+        threshold grows to the gap by which the strongest candidate still
+        left out beats the weakest seated member.
+        """
+        quota = float(self.quota)
+        members = frozenset(group)
+        excluded_tallies = sorted(
+            (
+                float(v.tallies[candidate])
+                for candidate in v.key.hopefuls
+                if candidate not in members
+            ),
+            reverse=True,
+        )
+        shortfall = max(
+            (quota - float(v.tallies[candidate]) for candidate in group),
+            default=0.0,
+        )
+        excess = max(
+            (tally - quota for tally in excluded_tallies),
+            default=0.0,
+        )
+        base = max(shortfall, excess, 0.0)
+
+        window_count = sum(
+            1
+            for hopeful in v.key.hopefuls
+            if v.tallies[hopeful] >= quota - base
+        )
+        remaining_seats = self.m - v.degree
+        if window_count > remaining_seats and excluded_tallies:
+            completion = excluded_tallies[: remaining_seats - len(group)]
+            left_out = excluded_tallies[remaining_seats - len(group) :]
+            if left_out:
+                member_min = min(
+                    float(v.tallies[candidate]) for candidate in group
+                )
+                if completion:
+                    member_min = min(member_min, min(completion))
+                head_to_head = max(left_out) - member_min
+                return max(base, head_to_head, 0.0)
+
+        return base
 
     def _propose_children(
         self,
@@ -476,7 +585,7 @@ class WIGMGraphConstructor(AbstractGraphConstructor):
         if np.any(v.tallies[hopefuls] > self.quota + self.MoI):
             edge_fpv_vec = self._edge_fpv_vec_from_cache(cache)
             if self.simultaneous:
-                for group in self._election_groups_within_moi(v, forced=True):
+                for group in self._election_groups_within_moi(v):
                     updated_wt_vec, transfer_values = (
                         self._updated_wt_vec_for_election_group(group, cache, wt_vec)
                     )
@@ -492,7 +601,7 @@ class WIGMGraphConstructor(AbstractGraphConstructor):
                         transfer_values=transfer_values,
                         wt_vec=updated_wt_vec,
                         fpv_vec=edge_fpv_vec,
-                        margin=0.0,
+                        margin=self._simultaneous_seating_margin(v, group),
                         candidates=group,
                     )
                 return
@@ -540,7 +649,7 @@ class WIGMGraphConstructor(AbstractGraphConstructor):
             if highest_tally >= self.quota - self.MoI:
                 edge_fpv_vec = self._edge_fpv_vec_from_cache(cache)
                 if self.simultaneous:
-                    group_iter = self._election_groups_within_moi(v, forced=False)
+                    group_iter = self._election_groups_within_moi(v)
                 else:
                     winner_idx_within_moi = hopefuls[
                         np.where(
@@ -554,10 +663,13 @@ class WIGMGraphConstructor(AbstractGraphConstructor):
                     updated_wt_vec, transfer_values = (
                         self._updated_wt_vec_for_election_group(group, cache, wt_vec)
                     )
-                    group_margin = max(
-                        max(highest_tally, self.quota) - min(v.tallies[list(group)]),
-                        0.0,
-                    )
+                    if self.simultaneous:
+                        group_margin = self._simultaneous_seating_margin(v, group)
+                    else:
+                        group_margin = max(
+                            max(highest_tally, self.quota) - min(v.tallies[list(group)]),
+                            0.0,
+                        )
                     action = (
                         EdgeAction.ELECT
                         if len(group) == 1

@@ -33,8 +33,8 @@ class CriticalMarginType(str, Enum):
     CANDIDATE_TO_MENTIONS = "candidate-to-mentions"
 
 
-class CobraCompilerV2Base:
-    """Shared state and update loop for COBRA v2 compilers."""
+class CobraNoiseFilterBase:
+    """Shared state and update loop for the noise-filter COBRA compilers."""
 
     def __init__(
         self,
@@ -47,7 +47,6 @@ class CobraCompilerV2Base:
         alpha: float = 0.05,
         lambda_value: float | None = None,
         use_fallback: bool = True,
-        optimizer_kwargs: dict[str, Any] | None = None,
         profile: bool = False,
         label: str | None = None,
     ) -> None:
@@ -61,7 +60,6 @@ class CobraCompilerV2Base:
         if not 0.0 < self.alpha < 1.0:
             raise ValueError("alpha must be in (0, 1).")
         self.threshold = 1.0 / self.alpha
-        self.optimizer_kwargs = dict(optimizer_kwargs or {})
         self.profile = bool(profile)
         self.dead_rows = self.interpreter.simultaneous_dead_rows()
         self.label = label or self._default_label()
@@ -75,8 +73,6 @@ class CobraCompilerV2Base:
             )
         self.M = 1.0
         self.num_updates = 0
-        self.optimizer_cache: dict[ThetaKey, float] = {}
-        self.optimizer_results: dict[ThetaKey, Any] = {}
         self.discrepancies: list[tuple[int, ThetaKey, float]] = []
         self.capital_history: list[float] = [self.M] if self.profile else []
         self.w_history: list[float] = [] if self.profile else []
@@ -163,8 +159,7 @@ class CobraCompilerV2Base:
             f"radius={self.radius}, "
             f"lambda_value={self.lambda_value}, "
             f"M={self.M}, "
-            f"num_updates={self.num_updates}, "
-            f"cached_thetas={len(self.optimizer_cache)}"
+            f"num_updates={self.num_updates}"
             ")"
         )
 
@@ -186,22 +181,6 @@ class CobraCompilerV2Base:
 
     def _default_label(self) -> str:
         return self.graph.vertex_label(self.base_vertex.ref)
-
-    def _w_for_theta(self, theta_key: ThetaKey) -> float:
-        if theta_key in self.optimizer_cache:
-            return self.optimizer_cache[theta_key]
-
-        result = self.interpreter.optimize(
-            self.base_point,
-            theta_key,
-            self.radius,
-            dead_rows=self.dead_rows,
-            **self.optimizer_kwargs,
-        )
-        w = float(result.minimum)
-        self.optimizer_cache[theta_key] = w
-        self.optimizer_results[theta_key] = result
-        return w
 
     def _total_ballot_weight(self) -> float:
         profile = getattr(self.graph, "profile", None)
@@ -228,160 +207,7 @@ class CobraCompilerV2Base:
         return self._default_lambda()
 
 
-class CobraCompilerV2(CobraCompilerV2Base):
-    """
-    Noise-filtered COBRA compiler for vertex-local candidate-to-candidate margins.
-    """
-
-    def __init__(
-        self,
-        interpreter: VertexInterpreter,
-        c: int | str,
-        l: int | str,
-        **kwargs: Any,
-    ) -> None:
-        self.c = interpreter.candidate_index(c)
-        self.l = interpreter.candidate_index(l)
-        if self.c == self.l:
-            raise ValueError("c and l must be distinct candidates.")
-        self.c_label = str(interpreter.graph.candidate_names[self.c])
-        self.l_label = str(interpreter.graph.candidate_names[self.l])
-        self.base_point = interpreter.base_point(self.c, self.l)
-        self.dead_columns: tuple[int, ...] = ()
-        super().__init__(interpreter, **kwargs)
-
-    def _default_label(self) -> str:
-        return (
-            f"{self.graph.vertex_label(self.base_vertex.ref)}: "
-            f"{self.c_label}>{self.l_label}"
-        )
-
-    def _discrepancy_bound(
-        self,
-        row_c: NDArray[np.integer],
-        row_b: NDArray[np.integer],
-    ) -> tuple[ThetaKey | None, float]:
-        theta_key = self.interpreter.theta_key(row_b, row_c, self.c, self.l)
-        if theta_key[0] == theta_key[1]:
-            return None, 0.0
-        w = self._w_for_theta(theta_key)
-        self.discrepancies.append((self.num_updates + 1, theta_key, w))
-        return theta_key, w
-
-    def _recorded_margin(self) -> float:
-        if self.base_vertex.tallies is None:
-            raise ValueError("base_vertex.tallies must be computed.")
-        tallies = np.asarray(self.base_vertex.tallies, dtype=np.float64)
-        return float(tallies[self.c] - tallies[self.l])
-
-
-class CobraQuotaCompilerV2(CobraCompilerV2Base):
-    """Noise-filtered COBRA compiler for candidate-to-quota margins."""
-
-    def __init__(
-        self,
-        interpreter: VertexInterpreter,
-        candidate: int | str,
-        *,
-        margin_type: CriticalMarginType | str,
-        quota: int | float | None = None,
-        **kwargs: Any,
-    ) -> None:
-        self.candidate = interpreter.candidate_index(candidate)
-        self.candidate_label = str(interpreter.graph.candidate_names[self.candidate])
-        self.margin_type = CriticalMarginType(margin_type)
-        if self.margin_type == CriticalMarginType.CANDIDATE_ABOVE_QUOTA:
-            self.candidate_column = 0
-            self.dead_columns = (1,)
-        elif self.margin_type == CriticalMarginType.CANDIDATE_BELOW_QUOTA:
-            self.candidate_column = 1
-            self.dead_columns = (0,)
-        else:
-            raise ValueError(
-                "margin_type must be CANDIDATE_ABOVE_QUOTA or "
-                "CANDIDATE_BELOW_QUOTA."
-            )
-        self.quota = float(getattr(interpreter.graph, "quota") if quota is None else quota)
-        self.base_point = self._quota_base_point(interpreter)
-        super().__init__(interpreter, **kwargs)
-
-    def _default_label(self) -> str:
-        relation = "above quota" if self.candidate_column == 0 else "below quota"
-        return (
-            f"{self.graph.vertex_label(self.base_vertex.ref)}: "
-            f"{self.candidate_label} {relation}"
-        )
-
-    def _discrepancy_bound(
-        self,
-        row_c: NDArray[np.integer],
-        row_b: NDArray[np.integer],
-    ) -> tuple[ThetaKey | None, float]:
-        theta_key = self._quota_theta_key(row_b, row_c)
-        if theta_key[0] == theta_key[1]:
-            return None, 0.0
-        w = self._w_for_theta(theta_key)
-        self.discrepancies.append((self.num_updates + 1, theta_key, w))
-        return theta_key, w
-
-    def _recorded_margin(self) -> float:
-        if self.base_vertex.tallies is None:
-            raise ValueError("base_vertex.tallies must be computed.")
-        tally = float(np.asarray(self.base_vertex.tallies)[self.candidate])
-        if self.margin_type == CriticalMarginType.CANDIDATE_ABOVE_QUOTA:
-            return tally - self.quota
-        return self.quota - tally
-
-    def _w_for_theta(self, theta_key: ThetaKey) -> float:
-        if theta_key in self.optimizer_cache:
-            return self.optimizer_cache[theta_key]
-        result = self.interpreter.optimize(
-            self.base_point,
-            theta_key,
-            self.radius,
-            dead_rows=self.dead_rows,
-            dead_columns=self.dead_columns,
-            **self.optimizer_kwargs,
-        )
-        w = float(result.minimum)
-        self.optimizer_cache[theta_key] = w
-        self.optimizer_results[theta_key] = result
-        return w
-
-    def _quota_base_point(self, interpreter: VertexInterpreter) -> NDArray[np.float64]:
-        return interpreter.candidate_base_point(
-            self.candidate,
-            self.candidate_column,
-        )
-
-    def _quota_theta_key(
-        self,
-        ballot_row: NDArray[np.integer],
-        cvr_row: NDArray[np.integer],
-    ) -> ThetaKey:
-        return (
-            self._quota_flat_coordinate(ballot_row),
-            self._quota_flat_coordinate(cvr_row),
-        )
-
-    def _quota_flat_coordinate(self, row: NDArray[np.integer]) -> int:
-        ballot_row = np.asarray(row, dtype=int)
-        prefix = 0
-        for bit, edge in enumerate(self.interpreter.seating_edges):
-            source = self.graph.vertex(edge.src)
-            fpv = self.interpreter._row_fpv(ballot_row, source.key.hopefuls)
-            if fpv == edge.candidate:
-                prefix |= 1 << bit
-
-        current_fpv = self.interpreter._row_fpv(
-            ballot_row,
-            self.base_vertex.key.hopefuls,
-        )
-        column = self.candidate_column if current_fpv == self.candidate else 2
-        return prefix * self.interpreter.shape[1] + column
-
-
-class CobraNoiseFilterCompiler(CobraCompilerV2Base):
+class CobraNoiseFilterCompiler(CobraNoiseFilterBase):
     """COBRA compiler verifying the local noise allowance for a margin."""
 
     def __init__(
@@ -427,7 +253,7 @@ class CobraNoiseFilterCompiler(CobraCompilerV2Base):
         return a / 2.0 if w else a
 
 
-class CobraQuotaNoiseFilterCompiler(CobraCompilerV2Base):
+class CobraQuotaNoiseFilterCompiler(CobraNoiseFilterBase):
     """Noise-filter compiler for candidate-to-quota local coordinates."""
 
     def __init__(
@@ -507,8 +333,8 @@ class CobraQuotaNoiseFilterCompiler(CobraCompilerV2Base):
         return prefix * self.interpreter.shape[1] + column
 
 
-class CobraMentionsCompilerV2(CobraCompilerV2Base):
-    """Noise-filtered compiler for a strong-candidate tally vs weak mentions."""
+class CobraMentionsNoiseFilterCompiler(CobraNoiseFilterBase):
+    """Noise-filter compiler for candidate-to-mentions local coordinates."""
 
     def __init__(
         self,
@@ -564,7 +390,6 @@ class CobraMentionsCompilerV2(CobraCompilerV2Base):
         else:
             self.lowest_strong_tally = float(lowest_strong_tally)
 
-        self.base_point = self._mentions_base_point(interpreter)
         super().__init__(interpreter, **kwargs)
 
     def _default_label(self) -> str:
@@ -581,29 +406,18 @@ class CobraMentionsCompilerV2(CobraCompilerV2Base):
         theta_key = self._mentions_theta_key(row_b, row_c)
         if theta_key[0] == theta_key[1]:
             return None, 0.0
-        w = self._w_for_theta(theta_key)
-        self.discrepancies.append((self.num_updates + 1, theta_key, w))
-        return theta_key, w
+        self.discrepancies.append((self.num_updates + 1, theta_key, 1.0))
+        return theta_key, 1.0
 
     def _recorded_margin(self) -> float:
-        return self.lowest_strong_tally - float(
-            self.maximum_possible_tallies[self.weak_candidate]
-        )
+        return self.radius / 2.0
 
-    def _mentions_base_point(
-        self,
-        interpreter: VertexInterpreter,
-    ) -> NDArray[np.float64]:
-        weights = interpreter.profile_wt_vec()
-        prefixes = interpreter.winner_prefix_indices(copy=False)
-        columns = np.array(
-            [self._mentions_column(row) for row in interpreter.graph.ballot_matrix],
-            dtype=np.int8,
-        )
+    def _diluted_margin(self) -> float:
+        return self.radius / (2.0 * self.N)
 
-        point = np.zeros(interpreter.shape, dtype=np.float64)
-        np.add.at(point, (prefixes, columns), weights)
-        return point
+    def assorter_from_w(self, w: float) -> float:
+        a = 1.0 / (2.0 - self.v)
+        return a / 2.0 if w else a
 
     def _mentions_theta_key(
         self,
@@ -637,32 +451,7 @@ class CobraMentionsCompilerV2(CobraCompilerV2Base):
         return 2
 
 
-class CobraMentionsNoiseFilterCompiler(CobraMentionsCompilerV2):
-    """Noise-filter compiler for candidate-to-mentions local coordinates."""
-
-    def _discrepancy_bound(
-        self,
-        row_c: NDArray[np.integer],
-        row_b: NDArray[np.integer],
-    ) -> tuple[ThetaKey | None, float]:
-        theta_key = self._mentions_theta_key(row_b, row_c)
-        if theta_key[0] == theta_key[1]:
-            return None, 0.0
-        self.discrepancies.append((self.num_updates + 1, theta_key, 1.0))
-        return theta_key, 1.0
-
-    def _recorded_margin(self) -> float:
-        return self.radius / 2.0
-
-    def _diluted_margin(self) -> float:
-        return self.radius / (2.0 * self.N)
-
-    def assorter_from_w(self, w: float) -> float:
-        a = 1.0 / (2.0 - self.v)
-        return a / 2.0 if w else a
-
-
-def plot_profiled_compiler(compiler: CobraCompilerV2Base, *, ax=None):
+def plot_profiled_compiler(compiler: CobraNoiseFilterBase, *, ax=None):
     if not compiler.profile:
         raise ValueError("Compiler was initialized with profile=False.")
     try:

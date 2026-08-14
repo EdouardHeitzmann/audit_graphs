@@ -1,0 +1,127 @@
+\newcommand{\pG}{\partial G}
+
+\section{Applications.}
+\subsection{Margin of Victory Bounds.}
+The \emph{Margin of Victory} (MoV) of an election is the smallest number of ballots that must be modified in order to change the outcome of the election. 
+Computing the MoV is useful for election reporting -- voters are bound to be curious how close the election was -- and also for election auditing (cf. \S\ref{sec:mismatch}).
+
+STV is among the most difficult election rules to find a margin for. 
+Even approximating the MoV is known to be NP-hard\footnote{Meaning complexity asymptotically greater than $O(N C \log(C))$ for some profile.} for STV; indeed, just deciding whether MoV$=1$ is NP-hard \cite{xiaComputingMarginVictory2012}.%\footnote{Note, in view of what follows in this section, that this implies audit graph construction is NP-hard -- any construction algorithm must cost $ \gg\!O(N m \log(m))$ operations for some profile.} in general.
+
+Computing a lower bound on the MoV is more productive. 
+There is already substantial work on this problem using a branch-and-bound Mixed-Integer Non-Linear Program (MINLP) \cite{blomAdvancesSTVMargin2026}, and such a bound may still be used to formulate an RLA for the election \cite{ekDoingMoreLess2026}.
+Audit graphs offer an alternative jumping-off point to the computation of these bounds, which might be used in tandem with the MINLP approach to produce tighter bounds.
+%In particular, they allow for an optimization of the branch-and-bound phase of the algorithm...
+
+The approach follows the intuition of \S\ref{sec:plausible}: a coherent $M$-plausible audit graph $G$ is a witness that manipulating fewer than $M/2$ ballots can not change the outcome of the election, \emph{provided that} such a manipulation can not shift the tallies in any vertex of $G$ by an $L^1$ distance of more than $M$.
+This provision holds as long as the tally function satisfies some notion of ``conservation of ballot mass:'' the sum of a single ballot's contribution to all tallies is at most $1$.
+
+This is a principle that the STV tabulation algorithm was specifically encoded to preserve.
+Ballots start the election with a weight of $1$, and transfer values are ordinarily computed to live in $[0,1]$.
+The only difference in the context of audit graph construction is the risk of negative transfer values: when a winner's tally is contained in $[q-M, q)$, the edge corresponding to her seating will be considered plausible, even though she did not make quota.
+In any vertices downstream from this seating, the winner's transfer value, computed as in Equation (\ref{eq:transfer}) of Appendix \ref{sec:appendix}, will be contained in $[-M/(q-M), 0)$.
+This could break the conservation of ballot mass if the lower endpoint of this interval is less than $< -1$, prompting the following statement:
+\begin{theorem}\label{thm:reasonable}
+As long as $M \leq q/2$, a coherent $M$-plausible graph $G$ witnesses that the MoV of an election is greater than $M/2$.
+\end{theorem}
+\begin{proof}
+	The bound comes from solving $-M/(q-M)=-1$; as long as it holds, all transfer values in $G$ are in $[-1,1]$, and modifying a single ballot can not shift the tallies by more than $2$ in $L^1$ distance. 
+
+	If fewer than $M/2$ ballots are modified, the triangle inequality then implies the tallies in any vertex stay within a radius-$M$ $L^1$ ball of their recorded values in $G$, so the new natural path can not escape $G$.\qed
+\end{proof}
+
+It bears emphasis that the construction of plausible graphs is not optimized for MoV computation. % -- their purpose was first and foremost to generate RLAs.
+In particular, the generosity described in \S\ref{sec:plausible} means that a plausible path contained in a graph $G$ might not be realizable by a perturbation of $\leq M/2$ ballots.
+The path might need to change one set of $M/2$ ballots in one round of the election, and another disjoint set in the next.
+
+A shrewder MoV-bounding approach would be to use an audit graph to detect the most plausible election path leading to an alternative winner set, then run the MINLP algorithm of \cite{blomAdvancesSTVMargin2026} on the prefix of that path leading to its edge with the largest plausibility threshold. 
+Then, replace said threshold with the program's output, and repeat the process with the next-most plausible alternative path.
+
+Imperfect as they are, plausible graphs can still be close to sharp in some cases.
+For example, the plausible graph in Figure \ref{fig:vic} witnesses a lower bound $\text{MoV}\geq 11,500$ for its election, which closes the gap with a known upper bound of $\text{MoV}\leq 16,021$ computed using the ConcreteSTV algorithm of \cite{blomAdvancesSTVMargin2026}.
+
+%A more efficient use of the audit graph construction for MoV-bounding could follow these lines:
+%\begin{enumerate}
+%    \item Increase $M$ until there is a 
+%\end{enumerate}
+
+\subsection{Mismatch-Based Audits.}\label{sec:mismatch}
+The mismatch-based approach generates an RLA by verifying that fewer than a MoV worth of votes were reported incorrectly \cite{ekDoingMoreLess2026}. 
+This is a so-called ``ballot-comparison'' audit: we have access to a digital \emph{Cast Vote Record} (CVR) indicating how each vote was interpreted by the tabulation, as well as a physical \emph{Manual Vote Record} (MVR) representing a paper trail which can be compared to the record by an Auditor.
+The data input into the RLA test process is a sequence of CVR-MVR pairs which are compared for mismatches.
+
+Audit graphs allow for a new subtlety in mismatch-audit design, by giving the auditing process a way of filtering out ``irrelevant'' mismatches. 
+For example, in a single-seat contest with three candidates $\CCC = \{a, b, c\}$, if there is a separate test process already verifying that $c$ can not win the election, then a mismatch between a ballot reported as $(a,b)$ in the CVR but sampled as $(a, c)$ in the MVR can safely be ignored; either way, the ballot will count towards candidate $a$'s tally when it matters.
+
+To formalize this, given a fixed plausible graph $G\subset \oO$, we call an edge $\ve = \ou\,\ov\in E(\oO)$ an \emph{escape} edge if $\ou\in G$ but $\ov\notin G$. 
+We use the notation $\partial G$ to denote the set of all escape edges of $G$.
+
+We define our \emph{global null hypothesis} as $H_{\star}=$ ``the natural election path under the MVR escapes the graph $G$'', and for each $\ve\in\pG$ we define a \emph{local null hypothesis} $H_{\ve}=$ ``the edge $\ve$ is natural.''
+Under the SHANGRLA framework, a valid test of $H_{\star}$ at level $\alpha$ is to reject each of the $H_{\ve}$ at level $\alpha$, since $H_{\star}\subset \bigcup_{\ve\in\pG} H_{\ve}$. In particular, there is no need to adjust for multiplicity -- cf. \S4.1 of \cite{starkSetsHalfaverageNulls2020}.
+
+To reject a local null $H_{\ve}$ where $\ve = \ou\, \ov$, it is always sufficient to verify that a given affine function of the tallies in $\ou$ which was recorded as positive in the CVR stays positive in the MVR. We call this affine function the \emph{critical margin} controlling the plausibility threshold of $\ve$ -- in practice, it can take one of three forms, depending on $\ve$:
+\begin{itemize}
+	\item The critical margin can be a \emph{candidate-to-candidate} margin, of the form $M_{cl} = T(c) - T(l)$, where $c, l \in \HHH(\ou)$ are two distinguished candidates.
+	\item Alternatively, the critical margin can be a \emph{candidate-below-quota} or \emph{candidate-above-quota} margin, $M_{qc} = q-T(c)$ or $M_{cq} = T(c) -q$, where $c\in\HHH(\ou)$ is a distinguished candidate.
+\end{itemize}
+For example, if $\ve$ is a seating edge corresponding to winners $S\subset \HHH(\ou)$, a valid critical margin is the candidate-below-quota margin $M_{qc}$ corresponding to the candidate $c\in S$ with the lowest tally according to $v$. 
+If $\ve$ is an elimination edge corresponding to $c\in \HHH(\ou)$, a valid critical margin might be the candidate-to-candidate margin $M_{cl}$ where $l\in \HHH(\ou)$ is the hopeful candidate with the lowest recorded tally in $\ou$, or alternatively the candidate-above-quota margin $M_{wq}$ where $w\in \HHH(\ou)$ is the candidate with the highest tally in excess of quota.
+
+Depending on which of these margins we are working with, we can drastically reduce the dimension of the parameter space established in Equation (\ref{eq:parameters}) of Appendix \ref{sec:appendix} from $(|\HHH(\ou)|+1)2^{d(\ou)}$ to either $3\cdot 2^{d(\ou)}$ or $2^{d(\ou)+1}$.
+For example, in a candidate-to-candidate margin $M_{cl}$, any parameter $t_{S;o}$ where $o\notin \{c,l\}$ has an identical impact, as long as $S$ is the same -- so they may all be treated as a single ``reduced parameter.''
+
+Then at the level of a local null $H_{\ve}$, a CVR-MVR pair should only be considered a mismatch if their interpretation in this reduced parameter space differs.
+To reject $H_{\ve}$, it is sufficient to check that there are not enough of these mismatches to reverse the critical margin computed by the CVR.
+This in turn can be done via any of the standard test supermartingales integrated in the SHANGRLA framework, such as ALPHA or COBRA \cite{starkALPHAAuditThat2023c,spertusCOBRAComparisonOptimalBetting2023}.
+We use the latter for the results in \S\ref{sec:results}.
+
+The advantage of considering mismatches at the local rather than global level is a dilution of the overall noise level between the CVR and MVR.
+Assuming the noise is not adversarial, most CVR-MVR discrepancies will only affect a fraction of the escape edges in $\pG$, leading to a more efficient test process.
+\subsection{Delta-Method Audits.}\label{sec:delta}
+
+We might also consider alternative test processes to reject the local null hypotheses $H_{\ve}$ of the previous section.
+In particular, a test process which succesfully uses the information contained in each mismatch -- which candidate the mismatch helps or hurts -- is bound to be more efficient in the non-adversarial setting.
+
+However, the non-linearity of the tally function in Equation (\ref{eq:tally}) of Appendix \ref{sec:appendix} means that the standard test supermartingales can't be applied off the shelf.
+This is because the direct impact of a sampled mismatch on the critical margin depends not only the mismatch itself, but also the sampling history of other mismatches.
+For example, sampling the same mismatch repeatedly can have a self-reinforcing impact on the margin.
+We must adapt our test processes to these non-linear margins.
+
+One such test uses the delta method to construct confidence intervals for each critical margin, and rejects the local null if this interval is positive. 
+This involves bounding the variances and covariances of the sample means of each of the reduced parameters from \S\ref{sec:mismatch} and multiplying by an appropriate gradient matrix to obtain a variance for the critical margin, from which we build a confidence interval -- cf. \cite{heitzmannGraphBasedAuditsMeek2026a} for details.
+
+This test process uses a standard Wald Confidence Interval, and as such it requires a fixed sample size -- it does not share the arbitrary stopping times of test supermartingales.
+On the other hand, it is more resilient to noise than tests like mismatch-based audits, because in the regime of low noise it replaces degenerate sample variances with worst-case stochastic bounds which are more sensitive to the sample size than the (low) number of sampled mismatches.
+But this also means that the Delta method performs worse for edges leaving higher-degree vertices, since these variance bounds are scaled by the number of parameters in Equation \ref{eq:parameters} to give the variance of the critical margin, and that number of parameters grows exponentially in the degree of the base vertex.
+
+In summary, the delta method has some advantages and drawbacks compared to mismatch-based audits. 
+It should not be taken as a final ``best practice'' test process to audit the assertions that audit graphs give rise to, but rather as a first pass attempt at using the information contained within a CVR-MVR comparison, which will be improved (indeed, already has been improved) in due time.
+We show some results comparing the performance of the mismatch and delta methods in the next section. %, although better test processes will surely arise eventually
+\subsection{Results.}\label{sec:results}
+We constructed audit graphs and generated RLAs for a representative cross-section of STV elections from across the world.
+For Scottish City Council and New South Wales (NSW) Local Government elections, we randomly selected one profile to audit for each of $m=2$, $3$, $4$, and $5$-seat elections. 
+Elsewhere, we aimed to represent multiple scales of STV elections, and we prioritized recent elections in municipalities that still use STV today.
+
+We recorded, for each of those elections, the maximal Margin of Insecurity $M$ for which a coherent and plausible graph could be constructed, and the Average Sampling Number (ASN) required for a successful audit.
+We artificially noised these election CVRs with $2\%$ mismatches, following a standard noising procedure established in the Appendix of \cite{blomRAIRERiskLimitingAudits2019b}. We used a risk level of $\alpha = 5\%$ for each of these audits.
+
+For the Mismatch method, which has arbitrary stopping times, we computed the ASN as the average sample size of 10 audits of the election, assuming all 10 certified with a sample size of less than $N/2$. 
+For the Delta method, we defined the ASN as the smallest sample size which would lead to a successful audit in at least 9 out of 10 randomly seeded trials.
+\input{sections/data.tex}
+There are two potential failure points for graph-based STV audits -- namely graph construction and assertion testing -- and the data provides insight into both.
+
+When graph construction fails, it is usually because of combinatorial explosion of the early layers of the graph for elections with $C\geq 20$ candidates. 
+The batch elimination shortcut of \S\ref{sec:shortcut} works to circumvent this problem in some cases, but it does not apply in situations where a strong candidate is close to making a quota on initial preferences, as in Wollongong or Portland District 3.
+The latter is factually one of the most stable in Portland -- the three winners are close to making a solid coalition -- but because batch elimination does not apply, the only remedy is to construct a full plausible graph with a much smaller margin $M$.
+
+It is generally possible to construct a plausible graph by pushing $M$ low enough, at the cost of a higher ASN for the audit it generates.
+This tradeoff is best illustrated by the Cumberland Greystanes election, which was simply a close race: the last round was decided by a margin of 21 out of the nearly 20,000 votes cast.
+This closeness was responsible for the only outright failure of the Delta method.
+
+The Mismatch Audit ASN was only comparable to the Delta-method Audit in profiles where the diluted margin $M/N$ was large, as is predicted by the theory of the COBRA test process in \S 3 of \cite{spertusCOBRAComparisonOptimalBetting2023}.
+In fairness to the Mismatch Audit, its success rates are much higher when noise levels are closer to the real-world measured rates (typically $<0.2\%$).
+We chose a deliberately higher noise level so that our results might demonstrate reliability as well as effectiveness.
+
+These results indicate how STV RLAs might further be improved -- e.g. devising more shortcuts to avoid full-graph computation -- but they are also cause for optimism. In particular, this is the first published RLA of an Australian 6-seat Senate election, the largest use of STV in the world.
+
+Replication code for Table \ref{tab:results} is available at.

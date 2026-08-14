@@ -1,15 +1,13 @@
 from .cobra import (
     CobraCompiler,
-    CobraCompilerV2,
-    CobraMentionsCompilerV2,
     CobraMentionsNoiseFilterCompiler,
+    CobraNoiseFilterBase,
     CobraNoiseFilterCompiler,
-    CobraQuotaCompilerV2,
     CobraQuotaNoiseFilterCompiler,
     CriticalMarginType,
     plot_profiled_compiler,
 )
-from .driver import EscapeCompilerInfo, GlobalAuditDriver, GlobalAuditDriverV2
+from .driver import EscapeCompilerInfo, GlobalAuditDriver
 from .delta_method import (
     DeltaMethodAuditDriver,
     DeltaMethodCompiler,
@@ -28,11 +26,9 @@ from .noise import ImplicitSampler
 
 __all__ = [
     "CobraCompiler",
-    "CobraCompilerV2",
-    "CobraMentionsCompilerV2",
     "CobraMentionsNoiseFilterCompiler",
+    "CobraNoiseFilterBase",
     "CobraNoiseFilterCompiler",
-    "CobraQuotaCompilerV2",
     "CobraQuotaNoiseFilterCompiler",
     "CriticalMarginType",
     "DeltaMethodAuditDriver",
@@ -42,7 +38,6 @@ __all__ = [
     "DeltaSampleProjection",
     "EscapeCompilerInfo",
     "GlobalAuditDriver",
-    "GlobalAuditDriverV2",
     "ImplicitSampler",
     "K_upper",
     "ThetaKey",

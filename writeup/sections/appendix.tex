@@ -1,0 +1,57 @@
+\appendix
+
+\newcommand{\fpv}{\mathsf{fpv}}
+\newcommand{\pre}{\mathsf{pre}}
+
+\newcommand{\PPP}{\mathcal{P}}
+
+\section{The STV Tally Function.}\label{sec:appendix}
+It will be useful in time to have a formal vertex-local parameterization for the STV tally function. We still work with a fixed candidate set $\CCC = [C]$, a seat number $m\in\ZZ^+$, and a number of ballots $N\in\ZZ^+$.
+As before, we define the \emph{quota} as $q = \lfloor N/(m+1)\rfloor +1$. 
+
+Formally, a \emph{ranking} on candidates $\HHH\subset \CCC$ is a monomorphism $r\colon [k]\hookrightarrow \HHH$ for some $k\in \NN$. We allow $k=0$, in which case $r=\varnothing$ is the empty ranking. 
+We denote the set of all rankings on a subset of candidates $\HHH\subset \CCC$ as $R_{\HHH}$. Then a \emph{profile} is formally a map $P\colon [N]\to R_{\CCC}$.
+
+Note that when $\HHH'\subseteq \HHH$, we have $R_{\HHH'}\subseteq R_{\HHH}$. To map a ranking in the reverse direction, we define the projection map $\pi\colon R_{\HHH}\to R_{\HHH'}$ as $\pi(r)= r\circ \iota$, where $\iota\colon [k']\hookrightarrow [k]$ is the unique monomorphism satisfying $r\circ\iota([k'])\subset \HHH'$ while maximizing $k'\in\NN$. This $k'$ might be $0$, in which case the projection $\pi(r)$ is empty, i.e. the ranking $r$ is ``exhausted'' in $\HHH'$.
+
+Given a vertex $v = (\tv, \lambda)\in\Omega(C, m)$, the \emph{projection} $\pi_v$ \emph{onto the vertex} $v$ is just the projection map from $R_{\CCC}$ to $R_{\HHH(v)}$. In that setting we also define the \emph{first-place vote map} $\fpv_v \colon R_{\CCC}\to \CCC\cup\{-1\}$ as follows:
+\[
+	\fpv_v(r)=\begin{cases}
+		-1 & \text{if } \pi_v(r)=\varnothing;\\
+		\pi_v(r)(0) & \text{otherwise.}
+	\end{cases}
+\]
+This in turn allows us to define the \emph{transfer prefix map} $\pre_v\colon R_{\CCC}\to \PPP(\WWW(v))$ as the map which takes each ranking to the set of winners that ranking would have transferred through according to $v$'s seating chart:
+\[
+	\pre_v(r) = \{w\in\WWW(v)\colon \fpv_{\lambda_v(w)}(r)=w\}.
+\]
+We're now equipped to discuss the set of parameters we use to encode the tally function at the level of a vertex $v$. These are the \emph{profile totals transferring to} $c\in\CCC$ \emph{through} $S\subset \WWW(v)$ \emph{according to} $v$:
+\begin{equation}
+	t_{S;c}(P, v) = |\{j\in [N]\colon \pre_v\big(P(j)\big)=S \text{ and } \fpv_v\big(P(j)\big)=c\}|.
+	\label{eq:parameters}
+\end{equation}
+We allow $S=\varnothing$ (votes that transfer through no winners before getting to their current first preference in $v$) as well as $c=-1$ (votes that indicate no preference in the current hopeful set).
+%If the vertex $v$ has degree $d$, there are $2^d$ options for prefixes $S\subseteq \WWW(v)$ (including the empty prefix).
+
+Finally we can recursively define the \emph{tallies} $T_c$ of candidates $c\in \CCC$ and the \emph{transfer values} of the winners $w\in \WWW(v)$:
+\begin{align}
+	T_c(P,v) &= \sum_{S\subset \WWW(v)}\left(\prod_{w\in S} \tau_w (P,v)\right) t_{S;c}(P,v) 
+	\label{eq:tally} \\
+	\tau_w(P,v) &= \Big(T_w\big(P, \lambda_v(w)\big)-q\Big)\Big/ T_w\big(P, \lambda_v(w)\big).
+	\label{eq:transfer}
+\end{align}
+This is a well-defined recursion, because each winner tally $T_w(P, \lambda_v(w))$ only depends on the transfer values of previously seated winners.
+In particular, when $w_1, w_2$ are simultaneous winners, any total transferring through both winners must be zero, because the $\fpv$ map is well-defined -- so we do not need to know the transfer value of $w_2$ to compute the tally of $w_1$.
+
+However, it is possible for the denominator in Equation (\ref{eq:transfer}) to be zero.
+In such a case we call the vertex $v$ \emph{degenerate}, and the tally function can be defined arbitrarily for $v$.
+This won't matter, since the plausible graph construction of \S\ref{sec:plausible} will never need to visit a degenerate vertex so long as $M$ is given a reasonable value -- certainly $M<q/2$ suffices, in view of Theorem \ref{thm:reasonable}.
+
+Even though the transfer value equations in (\ref{eq:transfer}) nominally need access to the profile totals $t_{S;w}(P,\lambda_v(w))$ of a previous vertex, these can be recuperated from the vertex-local parameters in (\ref{eq:parameters}) as follows:
+\[
+	t_{S;w}\big(P,\lambda_v(w)\big) = \sum_{c\in\HHH(v) \cup\{-1\}}\sum_{\substack{
+			S'\subset \WWW(v) \\
+			S\cup\{w\}\subset S'
+	}} t_{S';c}(P,v).
+\]
+So the tally function can be considered to be a function exclusively of the parameters in Equation (\ref{eq:parameters}), of which there are $D=(|\HHH(v)|+1)2^{|\WWW(v)|}$. In particular, every ballot in the profile can faithfully be represented as a unit vector in the hypercube $\{0,1\}^D$.

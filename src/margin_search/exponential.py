@@ -7,10 +7,10 @@ import numpy as np
 
 try:
     from ..election_graphs import AbstractGraphConstructor, IncoherentLeafError
-    from ..meek_graphs import MeekGraphConstructor
+    from ..wigm_graphs import WIGMGraphConstructor
 except ImportError:
     from election_graphs import AbstractGraphConstructor, IncoherentLeafError
-    from meek_graphs import MeekGraphConstructor
+    from wigm_graphs import WIGMGraphConstructor
 
 
 def exponential_search(
@@ -19,7 +19,7 @@ def exponential_search(
     m: int,
     starting_moi: float = 10.0,
     memory_lite: bool = True,
-    constructor_cls: Type[AbstractGraphConstructor] = MeekGraphConstructor,
+    constructor_cls: Type[AbstractGraphConstructor] = WIGMGraphConstructor,
     **constructor_kwargs: Any,
 ) -> AbstractGraphConstructor:
     """
@@ -56,10 +56,13 @@ def exponential_search(
             moi *= 2.0
 
     recorded_winner_set = _infer_recorded_winner_set(constructor)
-    restriction_moi = _smallest_incoherent_terminal_margin(
+    incoherent_moi = _smallest_incoherent_terminal_margin(
         constructor,
         recorded_winner_set,
     )
+    # Plausibility is inclusive at the threshold, so restrict strictly below
+    # the smallest incoherent terminal margin.
+    restriction_moi = max(math.ceil(incoherent_moi) - 1, 0)
 
     constructor.restrict_margin(restriction_moi)
     constructor.coherence_check()
@@ -72,7 +75,7 @@ def heap_based_search(
     *,
     m: int,
     memory_lite: bool = True,
-    constructor_cls: Type[AbstractGraphConstructor] = MeekGraphConstructor,
+    constructor_cls: Type[AbstractGraphConstructor] = WIGMGraphConstructor,
     verify_output: bool = False,
     allow_moi_at_or_above_half_quota: bool = False,
     **constructor_kwargs: Any,
@@ -154,7 +157,10 @@ def heap_based_search(
             constructor,
             recorded_winner_set,
         )
-        restriction_moi = math.floor(incoherent_moi)
+        # Plausibility is inclusive at the threshold (an edge with margin t
+        # first appears at MoI t), so the maximal coherent MoI is the
+        # largest integer strictly below the incoherent terminal margin.
+        restriction_moi = max(math.ceil(incoherent_moi) - 1, 0)
 
     constructor = _fresh_graph_at_moi(
         profile=profile,
@@ -463,7 +469,7 @@ def hybrid_search(
     m: int,
     starting_moi: float = 1.0,
     memory_lite: bool = True,
-    constructor_cls: Type[AbstractGraphConstructor] = MeekGraphConstructor,
+    constructor_cls: Type[AbstractGraphConstructor] = WIGMGraphConstructor,
     **constructor_kwargs: Any,
 ) -> AbstractGraphConstructor:
     """

@@ -1,0 +1,21 @@
+\section{Introduction.}
+The Single Transferable Vote (STV) is an algorithmic election rule. 
+Round by round, a profile of ranked-choice ballots is re-interpreted to determine which decision to make next, and candidates are seated or eliminated until a full winner set arises.
+
+This algorithmic nature makes STV theoretically more brittle than other election rules. 
+If an early decision in the algorithm is contingent on a sharp margin, a small perturbation of the ballot profile might have a ``butterfly effect'' on the election outcome. 
+For example, running the STV ruleset on an arbitrarily large partial sample of the profile might systematically produce the wrong winner(s) \cite{icelandSamplingWinnersRanked2024}. 
+It is further possible for a voter to disadvantage their preferred candidate by casting a ballot supporting them, creating a so-called voting ``paradox'' \cite{mccuneMonotonicityAnomaliesScottish2024}.
+
+The severity of these theoretical pathologies is perhaps tempered by their empirical rarity in real-world data.
+The same references point out that running the STV ruleset on a partial sample of the profile usually gives a good approximation of the actual outcome in real data, and the frequency of any voting paradox in recorded profiles is below 6\% \cite{icelandSamplingWinnersRanked2024,mccuneMonotonicityAnomaliesScottish2024}.
+
+We introduce audit graphs as a tool to quantitatively resolve the tension between theoretical brittleness and empirical stability of the STV rule for a given profile.
+By directly considering alternative election sequences that would result from the reversal of contingent sharp margins, they are able to detect or rule out the possibility of one of these pathological instabilities.
+They further offer a path to compute desirable lower-bounds for the margin of victory of an STV contest, as well as an intuitive and visual way to understand the macroscopic support patterns of a ranked-choice profile.
+
+Eponymously, audit graphs also provide a natural and general framework to design assertion-based ballot-comparison Risk-Limiting Audits (RLAs) for STV elections. 
+RLAs are statistical tests to verify the reported outcome of an election by sampling the paper ballots while bounding the risk of a type I error (miscertification).
+%These RLAs are \emph{assertion-based} when
+There is already a generalized framework to create RLAs for single-winner STV elections \cite{blomRAIRERiskLimitingAudits2019b}, and there exist partial frameworks to audit multi-winner STV elections that fall within a given set of patterns \cite{blom3+SeatRiskLimiting2026}. 
+Audit graphs unify and generalize these frameworks: a sufficient test is to reject the hypothesis that the true election path can escape a preconvened audit graph.

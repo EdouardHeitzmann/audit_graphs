@@ -508,38 +508,16 @@ def plot_wigm_graph(
         print("No nodes to plot")
         return
 
-    try:
-        from .wigm_graphs.black_box import BlackBoxWIGMGraphConstructor
-    except ImportError:
-        BlackBoxWIGMGraphConstructor = ()
-
-    is_black_box_graph = isinstance(graph, BlackBoxWIGMGraphConstructor)
     if seeded_build is None:
         seeded_build = bool(getattr(graph, "used_seeded_build", False))
     else:
         seeded_build = bool(seeded_build)
-    if is_black_box_graph:
-        seeded_build = True
 
     visible_refs = _visible_refs(graph, moi_restriction=moi_restriction)
     hidden_edge_refs = set()
     seed_connector_ref = getattr(graph, "_seed_connector_ref", None)
     seed_connector_label = None
     seed_bar_thickness = 0.24
-
-    if is_black_box_graph:
-        black_box_edge_ref = getattr(graph, "black_box_edge_ref", None)
-        if black_box_edge_ref is not None:
-            black_box_edge = graph.edge(black_box_edge_ref)
-            hidden_edge_refs.add(black_box_edge_ref)
-            visible_refs.discard(black_box_edge.dst)
-            seed_connector_ref = black_box_edge.src
-            seed_connector_label = _edge_label(
-                graph,
-                black_box_edge,
-                mode="literal" if label_edges is None else label_edges,
-            )
-            seed_bar_thickness = max(0.55, 0.08 * len(seed_connector_label))
 
     if not visible_refs:
         print("No vertices satisfy the moi_restriction")

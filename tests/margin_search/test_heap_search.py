@@ -8,7 +8,6 @@ import numpy as np
 
 from src.election_graphs.datatypes import EdgeAction
 from src.margin_search import heap_based_search
-from src.meek_graphs.graph_meek import MeekGraphConstructor
 from src.wigm_graphs.graph_wigm import WIGMGraphConstructor
 
 
@@ -111,21 +110,7 @@ def test_heap_search_can_override_half_quota_cap():
         )
 
     assert graph.quota == 51.0
-    assert graph.MoI == 30.0
+    # The runner-up's seating edge appears inclusively at its threshold
+    # max(60, 51) - 30 = 30, so the maximal coherent MoI is 29.
+    assert graph.MoI == 29.0
     assert graph.MoI >= graph.quota / 2.0
-
-
-def test_heap_search_uses_root_vertex_quota_for_meek_graphs():
-    profile = first_preference_profile([60, 30, 10])
-
-    with redirect_stdout(io.StringIO()):
-        graph = heap_based_search(
-            profile=profile,
-            m=1,
-            constructor_cls=MeekGraphConstructor,
-            memory_lite=True,
-        )
-
-    root_quota = graph.vertex(graph.root_ref).quota
-    assert graph.MoI == 25.0
-    assert graph.MoI < root_quota / 2.0

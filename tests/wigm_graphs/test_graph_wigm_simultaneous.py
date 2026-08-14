@@ -142,7 +142,11 @@ def test_forced_winner_is_required_in_simultaneous_groups():
     assert election_groups_from_root(constructor, root) == [(0,), (0, 1)]
 
 
-def test_too_many_quota_window_candidates_restricts_to_highest_window():
+def test_last_seat_winners_are_decided_head_to_head():
+    # With one seat left, seating a pair is never a decision the algorithm
+    # can make, so plausible winners are compared head-to-head: candidate 3
+    # is within MoI of quota but trails candidate 2 by 202 > MoI, so only
+    # candidate 2 gets a seating edge.
     profile = profile_from_first_preferences([0, 0, 1100, 898])
     constructor = WIGMGraphConstructor(
         profile,
@@ -156,6 +160,34 @@ def test_too_many_quota_window_candidates_restricts_to_highest_window():
 
     assert constructor.quota == 1000
     assert election_groups_from_root(constructor, root) == [(2,)]
+
+
+def test_seat_scarcity_computes_plausible_edges_top_down():
+    # Three candidates sit within MoI of quota with only two seats
+    # remaining. The maximal (two-seat) groups compete head-to-head against
+    # the candidate they exclude: (1, 2) fails because excluded candidate 0
+    # beats candidate 2 by 202 > MoI, while (0, 1) and (0, 2) survive.
+    # Every subset of a surviving maximal group is then plausible too, so
+    # (2,) inherits plausibility from (0, 2).
+    profile = profile_from_first_preferences([1100, 1000, 898, 0])
+    constructor = WIGMGraphConstructor(
+        profile,
+        m=2,
+        MoI=150,
+        simultaneous=True,
+        memory_lite=True,
+    )
+
+    root = expand_root(constructor)
+
+    assert constructor.quota == 1000
+    assert election_groups_from_root(constructor, root) == [
+        (0,),
+        (0, 1),
+        (0, 2),
+        (1,),
+        (2,),
+    ]
 
 
 def test_simultaneous_child_cache_removes_every_elected_candidate():

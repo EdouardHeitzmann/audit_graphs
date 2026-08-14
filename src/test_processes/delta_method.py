@@ -17,11 +17,11 @@ from ..election_graphs.utils import (
     maximum_possible_tallies_from_matrix,
 )
 from .interpreter import COORDINATE_COLUMNS, VertexInterpreter
-from .margins import critical_margin_for_escape
+from .margins import critical_margin_for_escape, seat_scarce
 from .noise import ImplicitSampler
 
 if TYPE_CHECKING:
-    from src.optimizers.symbolic_linearizer import SymbolicMarginModel
+    from .symbolic_equations import SymbolicMarginModel
 
 
 def log_comb(n: int, k: int) -> float:
@@ -309,7 +309,7 @@ def _numerical_recursive_margin_and_gradient(
 def _symbolic_margin_model(degree: int) -> "SymbolicMarginModel":
     """Build the symbolic margin itself, without differentiating it."""
     import sympy as sp
-    from src.optimizers.symbolic_linearizer import (
+    from .symbolic_equations import (
         build_recursive_margin,
         make_symbolic_array,
     )
@@ -901,11 +901,6 @@ class DeltaMethodAuditDriver:
         self.seeded_graph = bool(
             getattr(audit_graph, "used_seeded_build", False)
         )
-        if self.seeded_graph and self._is_black_box_seeded_graph(audit_graph):
-            raise NotImplementedError(
-                "DeltaMethodAuditDriver does not support black-box seeded "
-                "seatings yet."
-            )
         self.audit_graph = audit_graph
         self.alpha = float(alpha)
         self.alpha_K = self.alpha / 10.0 if alpha_K is None else float(alpha_K)
@@ -1340,15 +1335,6 @@ class DeltaMethodAuditDriver:
             )
         return np.asarray(self.audit_graph.root_wt_vec, dtype=np.float64)
 
-    @staticmethod
-    def _is_black_box_seeded_graph(audit_graph: Any) -> bool:
-        """Distinguish uncertain black-box seatings from batch elimination."""
-        return bool(
-            hasattr(audit_graph, "vertex_post_seed_tallies")
-            or hasattr(audit_graph, "seed_weight_scenarios")
-            or audit_graph.__class__.__module__.endswith(".black_box")
-        )
-
     def _initialize_seeded_graph_compilers(self) -> None:
         """Add the assertions that justify a batch-elimination graph seed."""
         if not self.seed_strong_candidates:
@@ -1603,6 +1589,7 @@ class DeltaMethodAuditDriver:
             quota=self.audit_graph.quota,
             MoI=self.audit_graph.MoI,
             simultaneous=self.simultaneous,
+            m=int(self.audit_graph.m),
         )
 
     def _interpreter_for_vertex(self, vertex: Any) -> VertexInterpreter:
@@ -1644,7 +1631,12 @@ class DeltaMethodAuditDriver:
     ) -> bool:
         tallies = np.asarray(vertex.tallies, dtype=np.float64)
         candidate_tally = float(tallies[candidate])
-        if not self.simultaneous:
+        if not self.simultaneous or seat_scarce(
+            vertex,
+            quota=float(self.audit_graph.quota),
+            MoI=float(self.audit_graph.MoI),
+            m=int(self.audit_graph.m),
+        ):
             challengers = [
                 index
                 for index in np.where(
