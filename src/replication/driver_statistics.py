@@ -305,6 +305,7 @@ def collect_driver_statistics(
     enforced_MoI: int | None = None,
     batch_elim: bool = False,
     skip_mismatch: bool = False,
+    require_secure: bool = False,
     suppress_driver_output: bool = True,
     verbose: bool = True,
 ) -> tuple[WIGMGraphConstructor, DriverStatistics]:
@@ -379,11 +380,17 @@ def collect_driver_statistics(
         graph.add_natural_edges()
         graph.assign_tightest_margins()
         coherent = bool(graph.coherence_check())
+        secure = bool(graph.security_check()) if require_secure else True
 
     if not coherent:
         raise RuntimeError(
             f"Graph is incoherent at enforced MoI {enforced_MoI}: its terminal "
             "vertices disagree on the winner set, so audits of it are invalid."
+        )
+    if not secure:
+        raise RuntimeError(
+            f"Graph is insecure at enforced MoI {enforced_MoI}: it contains a "
+            "non-leaf vertex with two winners seated below quota."
         )
 
     seeded_graph = bool(getattr(graph, "used_seeded_build", False))
@@ -493,6 +500,7 @@ def end_to_end_statistics_tester(
     enforced_MoI: int | None = None,
     batch_elim: bool = False,
     skip_mismatch: bool = False,
+    require_secure: bool = False,
     suppress_driver_output: bool = True,
     verbose: bool = True,
 ) -> WIGMGraphConstructor:
@@ -514,6 +522,7 @@ def end_to_end_statistics_tester(
         enforced_MoI=enforced_MoI,
         batch_elim=batch_elim,
         skip_mismatch=skip_mismatch,
+        require_secure=require_secure,
         suppress_driver_output=suppress_driver_output,
         verbose=verbose,
     )
@@ -572,6 +581,11 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser.add_argument("--enforced-moi", type=int, required=True)
     parser.add_argument("--batch-elim", action="store_true")
     parser.add_argument("--skip-mismatch", action="store_true")
+    parser.add_argument(
+        "--require-secure",
+        action="store_true",
+        help="fail if the graph has a non-leaf vertex with two sub-quota winners",
+    )
     parser.add_argument("--show-driver-output", action="store_true")
     parser.add_argument("--quiet", action="store_true")
     args = parser.parse_args(argv)
@@ -590,6 +604,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         enforced_MoI=args.enforced_moi,
         batch_elim=args.batch_elim,
         skip_mismatch=args.skip_mismatch,
+        require_secure=args.require_secure,
         suppress_driver_output=not args.show_driver_output,
         verbose=not args.quiet,
     )
