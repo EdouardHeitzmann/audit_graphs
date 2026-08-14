@@ -10,10 +10,11 @@ escape edges yields an RLA for the reported outcome.
 
 Two notebooks walk through the whole pipeline step by step:
 
-- [`notebooks/mismatch.ipynb`](notebooks/mismatch.ipynb) — the small-election
-  path: build a plausible audit graph by depth-first search (Shellharbour
-  Ward D 2024), plot it, then certify it with both the mismatch-based and
-  Delta-method audit drivers. Runs in seconds.
+- [`notebooks/mismatch.ipynb`](notebooks/mismatch.ipynb) — the DFS path:
+  build a plausible audit graph by depth-first search for Portland District 1
+  2024 (the writeup's Figure 1 election), plot it, then run both audit
+  drivers — the mismatch audit demonstrating its failure mode at 2% noise,
+  the Delta-method audit certifying at 711 ballots.
 - [`notebooks/victoria_v2.ipynb`](notebooks/victoria_v2.ipynb) — the
   large-election path: batch-elimination (seeded) construction for the 2025
   Victorian Senate election (65 candidates, 4.1M ballots), a plot of the
