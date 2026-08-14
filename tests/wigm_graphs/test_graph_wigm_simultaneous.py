@@ -556,3 +556,42 @@ def test_seeded_very_strong_preseed_vertices_store_tallies_for_audit_driver():
     for ref in preseed_refs:
         vertex = constructor.vertex(ref)
         assert vertex.tallies is not None
+
+
+def test_security_check_fails_on_two_sub_quota_winners_at_a_non_leaf():
+    # q = 521; candidate 0 is a definite winner, candidates 1 and 2 sit in
+    # the quota window below quota. The group (0, 1, 2) seats 1 and 2 below
+    # quota with a seat still to fill, so its child is very insecure.
+    profile = profile_from_first_preferences([900, 500, 450, 300, 250, 200])
+    constructor = WIGMGraphConstructor(
+        profile,
+        m=4,
+        MoI=100,
+        simultaneous=True,
+        memory_lite=True,
+    )
+    constructor.build()
+    constructor.add_natural_edges()
+
+    assert constructor.quota == 521
+    assert constructor.security_check() is False
+    assert len(constructor.very_insecure_vertices) >= 1
+
+
+def test_security_check_passes_when_winners_seat_above_quota():
+    # Both early winners clear quota at their seating vertices, and the
+    # final seat is only ever filled at a leaf, which the definition of a
+    # very insecure vertex exempts.
+    profile = profile_from_first_preferences([1300, 1250, 400, 50])
+    constructor = WIGMGraphConstructor(
+        profile,
+        m=3,
+        MoI=100,
+        simultaneous=True,
+        memory_lite=True,
+    )
+    constructor.build()
+    constructor.add_natural_edges()
+
+    assert constructor.security_check() is True
+    assert constructor.very_insecure_vertices == ()

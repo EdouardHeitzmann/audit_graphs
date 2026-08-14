@@ -960,6 +960,63 @@ class WIGMGraphConstructor(AbstractGraphConstructor):
 
         return frozenset(winners)
 
+    def _insecure_winners_for_vertex(self, v: ElectionState) -> list[int]:
+        """Winners of v whose tally at their seating vertex was below quota."""
+        insecure = []
+        for edge_ref in v.key.seated_at:
+            if edge_ref is None:
+                continue
+            edge = self.edge(edge_ref)
+            seating_vertex = self.vertex(edge.src)
+            if seating_vertex.tallies is None:
+                raise ValueError(
+                    "Cannot judge winner security: seating vertex "
+                    f"{edge.src} has no computed tallies."
+                )
+            if float(seating_vertex.tallies[edge.candidate]) < float(self.quota):
+                insecure.append(int(edge.candidate))
+        return insecure
+
+    def security_check(self) -> bool:
+        """
+        Check that no non-leaf vertex carries two insecure winners.
+
+        A winner is insecure at v when her tally at her seating vertex
+        lambda_v(w) was below quota; a non-leaf vertex with two insecure
+        winners is very insecure. Returns True when the graph contains no
+        very insecure vertex.
+
+        Also stores:
+            self.very_insecure_vertices
+        """
+        very_insecure: list[VertexRef] = []
+        for layer in self.layers:
+            for v in layer:
+                if v.status == ElectionStatus.TERMINAL:
+                    continue
+                if len(self._insecure_winners_for_vertex(v)) >= 2:
+                    very_insecure.append(v.ref)
+
+        self.very_insecure_vertices = tuple(very_insecure)
+        self.security_checked = True
+
+        if not very_insecure:
+            print("Security check passed: no very insecure vertices.")
+            return True
+
+        print("Security check failed.")
+        print(f"  very insecure vertices: {len(very_insecure)}")
+        for ref in very_insecure[:10]:
+            v = self.vertex(ref)
+            names = [
+                self.candidate_names[w]
+                for w in self._insecure_winners_for_vertex(v)
+            ]
+            print(f"    {self.vertex_label(ref)}: insecure winners {names}")
+        if len(very_insecure) > 10:
+            print(f"    ... and {len(very_insecure) - 10} more")
+        return False
+
     def _transfer_value_for_seating_edge(self, edge_ref: EdgeRef) -> float | None:
         """
         Return the transfer value associated with a seating edge.

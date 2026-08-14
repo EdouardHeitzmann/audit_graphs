@@ -78,19 +78,24 @@ def heap_based_search(
     constructor_cls: Type[AbstractGraphConstructor] = WIGMGraphConstructor,
     verify_output: bool = False,
     allow_moi_at_or_above_half_quota: bool = False,
+    require_secure: bool = False,
     **constructor_kwargs: Any,
 ) -> AbstractGraphConstructor:
     """
     Naive next-margin expansion search.
 
     Starts at MoI 1, repeatedly expands to the smallest stored next_margin in
-    the current graph, and stops when coherence fails. It then rebuilds the
-    returned graph from scratch at floor(smallest incoherent terminal margin),
-    avoiding stale edge semantics from earlier MoI values. By default, the
-    search stops at the largest integer MoI strictly below half the election
-    quota; set ``allow_moi_at_or_above_half_quota`` to retain the unrestricted
-    search behavior. When ``verify_output`` is true, a second fresh graph is
-    built and compared after normalizing allocation-order-dependent references.
+    the current graph, and stops when coherence fails. With ``require_secure``
+    the graph must also pass ``security_check`` (no non-leaf vertex with two
+    winners seated below quota), and the search stops when either property
+    fails. It then rebuilds the returned graph from scratch strictly below
+    the smallest margin among offending structures (incoherent terminals and
+    very insecure vertices), avoiding stale edge semantics from earlier MoI
+    values. By default, the search stops at the largest integer MoI strictly
+    below half the election quota; set ``allow_moi_at_or_above_half_quota``
+    to retain the unrestricted search behavior. When ``verify_output`` is
+    true, a second fresh graph is built and compared after normalizing
+    allocation-order-dependent references.
     """
     constructor = constructor_cls(
         profile,
@@ -138,8 +143,13 @@ def heap_based_search(
                 )
             return constructor
 
+    def _graph_is_acceptable() -> bool:
+        coherent = constructor.coherence_check()
+        secure = constructor.security_check() if require_secure else True
+        return coherent and secure
+
     stopped_at_half_quota = False
-    while constructor.coherence_check():
+    while _graph_is_acceptable():
         next_moi = _smallest_next_margin(constructor)
         if half_quota is not None and next_moi >= half_quota:
             stopped_at_half_quota = True
@@ -152,15 +162,27 @@ def heap_based_search(
         assert maximum_moi is not None
         restriction_moi = maximum_moi
     else:
-        recorded_winner_set = _infer_recorded_winner_set(constructor)
-        incoherent_moi = _smallest_incoherent_terminal_margin(
-            constructor,
-            recorded_winner_set,
-        )
+        offending_margins = []
+        if len(constructor.terminal_vertices_by_winner_set) > 1:
+            recorded_winner_set = _infer_recorded_winner_set(constructor)
+            offending_margins.append(
+                _smallest_incoherent_terminal_margin(
+                    constructor,
+                    recorded_winner_set,
+                )
+            )
+        if require_secure and getattr(constructor, "very_insecure_vertices", ()):
+            offending_margins.append(
+                _smallest_very_insecure_vertex_margin(constructor)
+            )
+        if not offending_margins:
+            raise RuntimeError(
+                "Search stopped without an offending terminal or vertex."
+            )
         # Plausibility is inclusive at the threshold (an edge with margin t
-        # first appears at MoI t), so the maximal coherent MoI is the
-        # largest integer strictly below the incoherent terminal margin.
-        restriction_moi = max(math.ceil(incoherent_moi) - 1, 0)
+        # first appears at MoI t), so the maximal acceptable MoI is the
+        # largest integer strictly below the smallest offending margin.
+        restriction_moi = max(math.ceil(min(offending_margins)) - 1, 0)
 
     constructor = _fresh_graph_at_moi(
         profile=profile,
@@ -591,6 +613,22 @@ def _infer_recorded_winner_set(
         raise ValueError("Could not infer recorded winner set.")
 
     return best_winner_set
+
+
+def _smallest_very_insecure_vertex_margin(
+    constructor: AbstractGraphConstructor,
+) -> float:
+    best_margin = float("inf")
+
+    for ref in constructor.very_insecure_vertices:
+        margin = constructor.vertex(ref).tightest_margin
+        if margin is not None and margin < best_margin:
+            best_margin = margin
+
+    if best_margin == float("inf"):
+        raise ValueError("No very insecure vertex with an assigned margin.")
+
+    return float(best_margin)
 
 
 def _smallest_incoherent_terminal_margin(
